@@ -7,7 +7,7 @@ import matplotlib
 # matplotlib.use('agg') #   non-GUI backend
 # from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 # from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
-###
+
 matplotlib.use("Qt5agg")
 import ccxt
 import sys
