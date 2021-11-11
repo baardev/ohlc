@@ -1,0 +1,9 @@
+{
+    "fromdate": "2021-11-04_00:05:00",
+    "todate": "2021-11-09_18:25:00",
+    "type": "backdata",
+    "pair": "ETH+BTC",
+    "t_frame": "5m",
+    "count": "842",
+    "exchange": "binance"
+}
