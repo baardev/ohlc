@@ -1,14 +1,14 @@
 #!/usr/bin/python
 import matplotlib
+matplotlib.use('agg') #   non-GUI backend
+#matplotlib.use("Qt5agg")
 import PyQt5
 # ! other matplotplib GUI options
 # matplotlib.use("Qt5agg")
 # matplotlib.use('Tkagg')
-# matplotlib.use('agg') #   non-GUI backend
 # from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 # from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 
-matplotlib.use("Qt5agg")
 import ccxt
 import sys
 import getopt
