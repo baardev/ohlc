@@ -3,15 +3,8 @@
 
 rm _*
 
-cd logs
-echo > ohlc.log
-cd -
-
-cd records
-rm *
-cd -
-
-
+cd logs && echo > ohlc.log && cd -
+cd records && rm * && cd -
 rm results.*
 
 #zip *order* archive.zip

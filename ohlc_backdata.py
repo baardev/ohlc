@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/python3.9
 from datetime import datetime
 import ccxt
 import pandas as pd

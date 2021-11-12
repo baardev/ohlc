@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/python3.9
 import pandas as pd
 import sys
 import getopt

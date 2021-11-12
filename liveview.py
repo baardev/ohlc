@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/python3.9
 # + matplotlib.use("Qt5agg")
 # + matplotlib.use('Tkagg')
 import matplotlib

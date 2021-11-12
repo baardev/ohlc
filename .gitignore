@@ -34,5 +34,6 @@ tests_scores.ods
 update
 view.py
 PUSH
+PULL
 config_0.hcl
 state_0.json

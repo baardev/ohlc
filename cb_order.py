@@ -1,4 +1,4 @@
-# + !/usr/sbin/python
+#!/usr/bin/python3.9
 from __future__ import print_function
 import sys
 import auth_client as cbp
