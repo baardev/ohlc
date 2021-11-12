@@ -15,7 +15,7 @@ to convert date string to epoch -> https://esqsoft.com/javascript_examples/date-
 sample data
 - oct  3 - oct 19 (bb_bear) 1633230000 - 1634612400
 - oct 19 - nov  2 (bb_bull) 1634612400 - 1634612400
-- oct  3 - nov  2 (bb)      1633230000 - 1634612400
+- oct  3 - nov  2 (bb)      16332300pip install mysqlclient00 - 1634612400
 
 2021-09-05T03:19:00 for https://www.utilities-online.info/epochtime = 1630822740
 2021-09-06T00:04:00 for https://www.utilities-online.info/epochtime = 1630897440
@@ -62,6 +62,9 @@ pip install tabloo
 pip install coinbasepro
 pip install colorama
 pip install xlsxwriter
+pip install mysqlclient (may have needed 'sudo apt-get install libmysqlclient-dev')
+pip install scipy
+
 
 (can't install on 3.5 duncanstroud.com)
 

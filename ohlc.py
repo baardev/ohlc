@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import matplotlib
-matplotlib.use('agg') #   non-GUI backend
-#matplotlib.use("Qt5agg")
+# matplotlib.use('agg') #   non-GUI backend
+matplotlib.use("Qt5agg")
 import PyQt5
 # ! other matplotplib GUI options
 # matplotlib.use("Qt5agg")
