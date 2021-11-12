@@ -1217,7 +1217,7 @@ def get_macdema(df, **kwargs):
     df["macd_signal"] = float("Nan")
     df["macd_hist"] = float("Nan")
 
-    df["MACD"], df["MACDSignalLine"], df["Histogram"] = ta.macd(df['Close'])
+    # df["MACD"], df["MACDSignalLine"], df["Histogram"] = ta.macd(df['Close'])
 
     df[f'EMA{EMA_fast}'] = df[MACD_src].ewm(span=EMA_fast).mean()
     df[f'EMA{EMA_slow}'] = df[MACD_src].ewm(span=EMA_slow).mean()
