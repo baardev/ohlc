@@ -399,7 +399,7 @@ def save_results():
 
     print("▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓")
 
-    csvname = "/home/jw/store/src/jmcap/ohlc/" + cvars.get('csvname')
+    csvname = "/home/jw/src/jmcap/ohlc/" + cvars.get('csvname')
     if not os.path.isfile(csvname): createcsv(csvname, print_order)
     with open(csvname, 'a') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=print_order_keys)
