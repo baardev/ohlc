@@ -75,8 +75,7 @@ pip install panzoom
 pip install coinbase_python3
 
 # rsync
-rsync -avr /home/jw/src/jmcap/ohlc/  jw@duncanstroud.com:/home/jw/src/jmcap/ohlc/
-
+rsync -avr --exclude 'safe/*' --exclude 'venv/*' /home/jw/src/jmcap/ohlc/ jw@duncanstroud.com:/home/jw/src/jmcap/ohlc/
 
 # remote connectng
 
