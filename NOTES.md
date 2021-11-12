@@ -66,11 +66,11 @@ pip install colorama
 pip install xlsxwriter
 pip install mysqlclient (may have needed 'sudo apt-get install libmysqlclient-dev')
 pip install scipy
+pip install pandasgui   
 
 
 (can't install on 3.5 duncanstroud.com)
 
-pip install pandasgui   
 pip install MySQLdb
 pip install mysqlclient
 pip install panzoom
