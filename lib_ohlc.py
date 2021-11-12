@@ -1251,8 +1251,8 @@ def get_macd(df, **kwargs):
     df[f'EMA{EMA_fast}'] = df[MACD_src].ewm(span=EMA_fast).mean()
     df[f'EMA{EMA_slow}'] = df[MACD_src].ewm(span=EMA_slow).mean()
 
-    print(talib.MACD(df[MACD_src]))
-
+    # ! using pandas_ta crashed ONLU on debian,.  talib works
+    # !df["MACD"], df["MACDSignalLine"], df["Histogram"] = ta.macd[MACD_src]
     df["MACD"], df["MACDSignalLine"], df["Histogram"] = talib.MACD(df[MACD_src])
 
     df['MACD'] = df['EMA12'] - df['EMA26']
