@@ -82,9 +82,9 @@ o.state_wr("purch_qty", g.purch_qty)
 g.purch_qty_adj_pct = o.cvars.get("purch_qty_adj_pct")
 
 if o.cvars.get("datatype") == "live":
-    g.interval = 10
-else:
     g.interval = 10000
+else:
+    g.interval = 10
     # ! 1sec = 1000
     # ! 300000 = 5min
 
