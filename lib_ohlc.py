@@ -1078,7 +1078,7 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
     if cvars.get("datatype") == "backtest":
 
         datawindow = cvars.get('datawindow') + 1  # + datawindow + 1        # + LOAD
-        datafile = f"{cvars.get('datadir')}/{cvars.get('backtestfile')}"
+        datafile = f"/home/jw/src/jmcap/ohlc/{cvars.get('datadir')}/{cvars.get('backtestfile')}"
         df = cvars.load(datafile, maxitems=cvars.get("datalength"))
 
         df.rename(columns={'Date': 'Timestamp'}, inplace=True)
