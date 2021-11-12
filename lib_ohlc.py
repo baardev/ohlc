@@ -92,7 +92,7 @@ def filter_order(order):
                 handleEx(ex, f"{tord}\n{key}")
                 exit(1)
 
-    argstr = f"./cb_order.py {argstr}"
+    argstr = f"/home/jw/src/jmcap/ohlc/cb_order.py {argstr}"
     return tord, argstr
 
 
