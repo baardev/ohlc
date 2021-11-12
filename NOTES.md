@@ -57,7 +57,8 @@ pip install PyQt5
 pip install ccxt
 pip install matplotlib
 pip install mplfinance
-pip install pandas-ta
+pip install pandas-ta 
+pip install ta-lib (req. ta-lib src from https://mrjbq7.github.io/ta-lib/install.html)
 pip install pynput
 pip install pandas
 pip install tabloo

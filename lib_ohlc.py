@@ -8,6 +8,7 @@ import sys
 import numpy as np
 import pandas as pd
 import pandas_ta as ta
+import talib as talib
 from lib_cvars import Cvars  # ! used in ohlc.py, not here
 import mplfinance as mpf
 import matplotlib.patches as mpatches
@@ -1250,7 +1251,9 @@ def get_macd(df, **kwargs):
     df[f'EMA{EMA_fast}'] = df[MACD_src].ewm(span=EMA_fast).mean()
     df[f'EMA{EMA_slow}'] = df[MACD_src].ewm(span=EMA_slow).mean()
 
-    df["MACD"], df["MACDSignalLine"], df["Histogram"] = ta.macd(df[MACD_src])
+    print(talib.MACD(df[MACD_src]))
+
+    df["MACD"], df["MACDSignalLine"], df["Histogram"] = talib.MACD(df[MACD_src])
 
     df['MACD'] = df['EMA12'] - df['EMA26']
     df['MACDSignalLine'] = df['MACD'].ewm(span=signal_span).mean()
