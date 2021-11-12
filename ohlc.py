@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3.9
 import matplotlib
 # matplotlib.use('agg') #   non-GUI backend
 matplotlib.use("Qt5agg")
