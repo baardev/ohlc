@@ -38,8 +38,8 @@
   ,"backtestmeta":"bb_DATA"
 
   #! bb_bear=4572, bb_bull=5981, bb=9468
-  ,"datalength":9468      #! MUST be > data-window * 2 - for random/backtest data only:: @5m 1d=288. 1w=2016, 1m=8640
-#  ,"datalength":588
+  #,"datalength":9468      #! MUST be > data-window * 2 - for random/backtest data only:: @5m 1d=288. 1w=2016, 1m=8640
+  ,"datalength":588
 
    #! for LIVE data 'data-window' value must match 'since' value... i.e. 72 @ 5m = 6hr
   ,"timeframe":"5m"   #! check that the timeframe listed here is support in the o.interval setter in ohlc.py
