@@ -32,7 +32,7 @@
   ,"datatype": "backtest"
 #  ,"datatype": "live"
   ,"csvname": "results.csv"
-  ,"datadir":"/home/jw/store/src/jmcap/ohlc/data"
+  ,"datadir":"/home/jw/src/jmcap/ohlc/data"
 
   ,"backtestfile":"bb"
   ,"backtestmeta":"bb_DATA"

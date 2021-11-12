@@ -1,7 +1,6 @@
 #!/bin/bash
 
 
-#cd /home/jw/store/src/jmcap/ohlc
 rm _*
 
 cd logs
