@@ -25,6 +25,7 @@ SELL_COMBO = {keyboard.Key.alt, keyboard.KeyCode.from_char('s')}
 current = set()
 
 def on_press(key):
+    # + print(key)
     if key in UP_COMBO:
         current.add(key)
         if all(k in current for k in UP_COMBO):

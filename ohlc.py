@@ -183,7 +183,7 @@ def working(k):
         pair = f"{pair} RANDOMIZED"
 
     t = o.Times(o.cvars.get("since"))
-    add_title = f"[{g.cwd}:{g.buyfiltername}/{g.sellfiltername}:{o.cvars.get('datawindow')}]"
+    add_title = f"[{g.cwd}:{g.buyfiltername}/{g.sellfiltername}:{g.datawindow}]"
     timeframe = o.cvars.get("timeframe")
 
     # + ───────────────────────────────────────────────────────────────────────────────────────
@@ -203,9 +203,9 @@ def working(k):
     # ! CHECK THE SIZE OF THE DATAFRAME and Gracefully exit on error or command
     # ! ───────────────────────────────────────────────────────────────────────────────────────
     if o.cvars.get('datatype') == "backtest":
-        if len(ohlc.index) < o.cvars.get('datawindow'):
+        if len(ohlc.index) < g.datawindow:  # ! JWFIX "!=" instead of "<" ?
             g.run_time = time.time() - g.time_start
-            o.save_results()
+            o.save_results(data=ohlc)
             if not g.time_to_die:
                 if g.batchmode:
                     exit(0)

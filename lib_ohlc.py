@@ -224,14 +224,14 @@ def orders(order, **kwargs):
 
 def handleEx(ex, related):
     print(pcERROR())
-    print("▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓")
+    print("───────────────────────────────────────────────────────────────────────")
     print("Related: ", related)
     print("---------------------------------------------------------------------")
     print("Exception: ", ex)
     print("---------------------------------------------------------------------")
     for e in traceback.format_stack():
         print(e)
-    print("▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓")
+        print("───────────────────────────────────────────────────────────────────────")
     cclr()
     exit()
     return
@@ -302,7 +302,12 @@ def announce(**kwargs):
         return False
 
 
-def save_results():
+def save_results(**kwargs):
+    try:
+        data = kwargs['data']
+    except:
+        data=False
+
     def createcsv(csvname, print_order):
         fieldnames = print_order.keys()
         with open(csvname, 'w') as csvfile:
@@ -330,34 +335,36 @@ def save_results():
     findat["rt_id"] = cvars.get('rt_id')
     findat["maxbuys allowed"] = cvars.get('maxbuys')
     findat["lowpctline"] = cvars.get('lowpctline')
+    findat["Data window"] = g.datawindow
+    tpi = state_r('pct_running')
+    findat["Total % increase"] = tpi
 
-    try:  # * iF we break too early, there is data missing, so it crashes
-
-        findat["Data window"] = cvars.get('datawindow')
-        tpi = state_r('pct_running')
-        findat["Total % increase"] = tpi
-
+    try:
         tph = ((state_r('last_sell_price') / state_r('first_buy_price')) - 1) * 100
-        findat["Total % HODL"] = tph
+    except:
+        tph = 0
 
-        tpf = tpi - tph
-        findat["Final %"] = tpf
+    findat["Total % HODL"] = tph
+    tpf = tpi - tph
+    findat["Final %"] = tpf
+    findat["Total buys"] = g.tot_buys
+    findat["Total sells"] = g.tot_sells
 
-        findat["Total buys"] = g.tot_buys
-        findat["Total sells"] = g.tot_sells
+    if (len(state_r('run_counts'))) > 0:
         findat["Max Cont. Buys"] = max(state_r('run_counts'))
+    else:
+        findat["Max Cont. Buys"] = "N/A"
 
-        findat["$ Total Profit"] = state_r('pnl_running')
+    findat["$ Total Profit"] = state_r('pnl_running')
 
-        findat["Delta Days"] = state_r('delta_days')
-        findat["runtime (m)"] = int(g.run_time / 6) / 10
-        findat["Message"] = "OK"
+    findat["Delta Days"] = state_r('delta_days')
+    findat["runtime (m)"] = int(g.run_time / 6) / 10
+    findat["Message"] = "OK"
 
-    except Exception as ex:
-        findat["Message"] = "There were no transactions"
-        pass
     print("▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓")
-    file1 = open(f"xout_{cvars.get('rt_id')}.txt", "w")
+
+    fn = f"xout_{cvars.get('rt_id')}.txt"
+    file1 = open(fn, "w")
 
     print_order_keys = [
         "rt_id"
@@ -395,7 +402,6 @@ def save_results():
 
     for key in print_order:
         str = f"{key}: {print_order[key]}"
-        print(str)
         file1.write(str + "\n")
     file1.close()
 
@@ -416,6 +422,7 @@ def save_results():
     fn = f"_allrecords_{g.instance_num}.json"
     g.logit.debug(f"Save {fn}")
     cvars.save(g.df_allrecords, fn)
+    g.logit.info(f"Results saved in {csvname}")
 
 
 def get_datetime_str():
@@ -963,7 +970,7 @@ def add_2_bb_avg_plots(ohlc, **kwargs):
 
 def get_ohlc(ticker_src, spot_src, **kwargs):
     # + global g.idx
-    global datawindow
+    # + global datawindow
     # + def get_ohlc(exchange, conversion, cvars):
     pair = cvars.get("pair")
     timeframe = cvars.get("timeframe")
@@ -1018,13 +1025,13 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
     # + *  RANDOM DATA
     # + * -------------------------------------------------------------
     if cvars.get("datatype") == "random":
-        datawindow = datawindow - 1  # + ! for some reason, 'live' and 'random' require 'datawindow-1' to work, but 'backtest' needs 'datawindow'
+        g.datawindow = g.datawindow - 1  # + ! for some reason, 'live' and 'random' require 'datawindow-1' to work, but 'backtest' needs 'datawindow'
         columns = ['Timestamp', 'Open', 'High', 'Low', 'Close', 'Volume']
         d = {}
-        for k in range(datawindow):
+        for k in range(g.datawindow):
             data.append({"Timestamp": float("Nan"), "Open": float("Nan"), "High": float("Nan"), "Low": float("Nan"),
                          "Close": float("Nan"), "Volume": float("Nan")})
-        for k in range(datawindow):
+        for k in range(g.datawindow):
             data[k]['Timestamp'] = epoch_ms
             epoch_ms = epoch_ms + cvars.get("epoch_ms_delta")
 
@@ -1035,7 +1042,7 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
         mu = cvars.get("mu")
         sigma = cvars.get("sigma")
         np.random.seed(seed)
-        returns = np.random.normal(loc=mu, scale=sigma, size=datawindow)
+        returns = np.random.normal(loc=mu, scale=sigma, size=g.datawindow)
         ary = 5 * (1 + returns).cumprod()
         df["Close"] = ary
 
@@ -1062,7 +1069,7 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
         # + !                             index mismatch.  expecting 72, got 71)
         g.logit.info("Remote connecting (fetching OHLC...)", extra={'mod_name': 'lib_olhc'})
         # + LOAD
-        ohlcv = ticker_src.fetch_ohlcv(symbol=pair, timeframe=timeframe, since=since, limit=datawindow)
+        ohlcv = ticker_src.fetch_ohlcv(symbol=pair, timeframe=timeframe, since=since, limit=g.datawindow)
 
         df = pd.DataFrame(ohlcv, columns=['Timestamp', 'Open', 'High', 'Low', 'Close', 'Volume'])
         df['orgClose'] = df['Close']
@@ -1078,8 +1085,6 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
     # + *  BACKTEST DATA
     # + * -------------------------------------------------------------
     if cvars.get("datatype") == "backtest":
-
-        datawindow = cvars.get('datawindow') + 1  # + datawindow + 1        # + LOAD
         datafile = f"{cvars.get('datadir')}/{cvars.get('backtestfile')}"
         df = cvars.load(datafile, maxitems=cvars.get("datalength"))
 
@@ -1089,7 +1094,7 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
         if cvars.get("startdate"):
             # + * calculate new CURRENT time, not starting time of chart
             old_start_time = df.iloc[0]['Timestamp']
-            new_start_time = df.iloc[0]['Timestamp'] + dt.timedelta(minutes=5 * cvars.get("datawindow"))
+            new_start_time = df.iloc[0]['Timestamp'] + dt.timedelta(minutes=5 * g.datawindow)
             print("old/new start time:", old_start_time, new_start_time)
             date_mask = (df['Timestamp'] > new_start_time)
             df = df.loc[date_mask]
@@ -1097,8 +1102,8 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
         df["Date"] = pd.to_datetime(df['Timestamp'], unit='ms')
         df.index = pd.DatetimeIndex(df['Timestamp'])
 
-        _start = (datawindow - 1) + g.gcounter
-        _end = _start + (datawindow - 1)
+        _start = (g.datawindow) + g.gcounter
+        _end = _start + (g.datawindow)
 
         ohlc = df.iloc[_start:_end]
 
@@ -1724,7 +1729,7 @@ def backfill(collected_data, **kwargs):
     _tmp = collected_data[::-1]
     # + for i in range(cvars.get('datawindow')):
     i = 0
-    while len(newary) < cvars.get('datawindow'):
+    while len(newary) < g.datawindow:
         if i < len(_tmp):
             newary.append(_tmp[i])
         else:
