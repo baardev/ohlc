@@ -57,7 +57,7 @@ g.time_start = time.time()
 
 g.logit = logging
 g.logit.basicConfig(
-    filename="logs/ohlc.log",
+    filename="/home/jw/src/jmcap/ohlc/logs/ohlc.log",
     filemode='a',
     format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
     datefmt='%H:%M:%S',
