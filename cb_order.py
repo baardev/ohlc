@@ -18,7 +18,7 @@ import coinbase
 import lib_ohlc as o
 import pickle
 import pprint as pp
-import logging 
+import logging  
 import lib_globals as g
 import json
 from decimal import Decimal
