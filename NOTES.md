@@ -50,6 +50,8 @@ https://www.vultr.com/docs/update-python3-on-debian
 
 apt install qtcreator
 apt install qtdeclarative5-dev
+apt install gnumeric
+
 
 pip install PyQt5
 pip install ccxt
@@ -92,6 +94,9 @@ x11vnc -display :1 -bg -nopw -listen localhost -xkb
 
 # tunnel to localhost
 ssh -N -T -L 5900:localhost:5900 jw@duncanstroud.com
+
+#view locally 
+vncviewer -geometry 1920x1280 localhost:5900
 
 #connect to localhost
 vncviewer -encodings 'copyrect tight zrle hextile' localhost:5900
