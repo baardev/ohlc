@@ -2302,6 +2302,11 @@ def trigger_bb3avg(df, **kwargs):
                     and g.buys_permitted  # * we haven't reached the maxbuy limit yet
 
                 # * BUY is approved, so check that we are not runnng hot
+                # ! cooldown is calculated by adding the current g.gcounter counts and adding the g.cooldown
+                # ! value to arrive a the NEXT g.gcounter value that will allow buys.
+                # !g.cooldown holds the number of buys
+
+
                 if is_a_buy and (g.gcounter >= g.cooldown):
                     # * set cooldown by setting the next gcounter number that will freeup buys
                     g.cooldown = g.gcounter + cvars.get("cooldown")
@@ -2318,13 +2323,13 @@ def trigger_bb3avg(df, **kwargs):
                     state_ap('qty_holding',
                              g.purch_qty)  # * adds to list of purchased quantities since last sell, respectfully
 
-                    # + * calc avg price using weighted averaging, price and cost are list sums
+                    # * calc avg price using weighted averaging, price and cost are [list] sums
                     g.subtot_cost, g.subtot_qty, g.avg_price = wavg(state_r('qty_holding'), state_r('open_buys'))
 
                     state_wr("last_avg_price",g.avg_price)
                     ax.set_facecolor("#f7d5de")
 
-                    # + * update the buysell records
+                    # * update the buysell records
                     g.df_buysell['subtot'] = g.df_buysell.apply(lambda x: tots(x), axis=1)
                     g.df_buysell['pct'].fillna(method='ffill', inplace=True)
                     g.df_buysell['pnl'].fillna(method='ffill', inplace=True)
@@ -2336,11 +2341,11 @@ def trigger_bb3avg(df, **kwargs):
                     tv = df['Timestamp'].iloc[-1]  # + * gets last timestamp
                     g.df_buysell['Timestamp'].iloc[0] = tv  # + * add last timestamp tp buysell record
 
-                    # + * increment run counter and make sure the historical max is recorded
+                    # * increment run counter and make sure the historical max is recorded
                     g.current_run_count = g.current_run_count + 1
                     state_wr("current_run_count", g.current_run_count)
 
-                    # + * track ongoign number of buys since last sell
+                    # * track ongoing number of buys since last sell
                     g.curr_buys = g.curr_buys + 1
 
                     g.buys_permitted = False if g.curr_buys >= cvars.get('maxbuys') else True
@@ -2353,23 +2358,15 @@ def trigger_bb3avg(df, **kwargs):
                         g.is_first_buy = False
                     state_wr("last_buy_price", BUY_PRICE)
 
-                    # + print(Fore.RED,end="")
-                    # + print(f"  B: [{g.current_run_count:2d}]",end="")
-                    # + print(f" pr: [{CLOSE:6.2f}]",end="")
-                    # + print(f" av: [{g.avg_price:6.2f}]",end="")
-                    # + print(f" pQ: [{g.purch_qty:6.4f}]",end="")
-                    # + print(f" HO: [{g.subtot_qty:6.4f}]",end="")
-                    # + print(f" rC: [{(g.subtot_qty * CLOSE):6.4f}]"+Fore.RESET)
-
                     order = {}
                     order["pair"] = cvars.get("pair")
-                    # + order["funds"] = False
+                    # = order["funds"] = False
                     order["side"] = "buy"
                     order["size"] = truncate(g.purch_qty, 5)
                     order["price"] = CLOSE
                     order["order_type"] = "market"
-                    # + order["stop_price"] = CLOSE * 1/cvars.get('closeXn')
-                    # + order["upper_stop_price"] = CLOSE * 1
+                    # = order["stop_price"] = CLOSE * 1/cvars.get('closeXn')
+                    # = order["upper_stop_price"] = CLOSE * 1
                     order["uid"] = get_seconds_now()
                     order["state"] = "submitted"
                     order["record_time"] = f"{dfline['Date']}"
@@ -2422,19 +2419,14 @@ def trigger_bb3avg(df, **kwargs):
 
                     ax.set_facecolor("#ffffff")  # * make background pink when in BUY mode
                     # * calc new data
-                    g.subtot_value = g.subtot_qty * SELL_PRICE  # + * g.subtot_qty was set in the BUY routine
-
-                    # + print(f"PURCHASE: {g.current_run_count}  ({g.current_run_count * 0.01})/ SELLING: {g.subtot_qty}")
+                    g.subtot_value = g.subtot_qty * SELL_PRICE  # * g.subtot_qty was set in the BUY routine
 
                     try:
                         g.last_pct_gain = ((g.subtot_value-g.subtot_cost)/g.subtot_cost)*100
                     except Exception as ex:
                         g.pct_gain_list = 0
 
-
-
-
-                    # + ! save new data
+                    #  ! save new data
                     state_ap("pct_gain_list", g.last_pct_gain)
                     state_ap("pnl_record_list", g.subtot_value - g.subtot_cost)
                     g.pnl_running = sum(state_r('pnl_record_list'))
@@ -2442,7 +2434,7 @@ def trigger_bb3avg(df, **kwargs):
                     g.pct_running = sum(state_r('pct_gain_list'))
                     state_wr("pct_running", g.pct_running)
 
-                    # + * track the local and total run count
+                    # * track the local and total run count
                     state_ap("run_counts", g.current_run_count)
                     # + prev_ct = state_r("last_run_count")                     # + * get last run subtotal
                     # + this_ct = state_r("current_run_count")                  # + * get new current subtotal count
@@ -2473,29 +2465,21 @@ def trigger_bb3avg(df, **kwargs):
                     # + g.subtot_qty = sum(state_r('qty_holding'))
                     g.subtot_cost, g.subtot_qty, g.avg_price = wavg(state_r('qty_holding'), state_r('open_buys'))
 
-                    # + print(Fore.YELLOW,end="")
-                    # + print(f"  S: [{g.current_run_count:2d}]",end="")
-                    # + print(f" pr: [{CLOSE:6.2f}]",end="")
-                    # + print(f" av: [{g.avg_price:6.2f}]",end="")
-                    # + print(f" pQ: [{g.purch_qty:6.4f}]",end="")
-                    # + print(f" SE: [{g.subtot_qty:6.4f}]",end="")
-                    # + print(f" rC: [{(g.subtot_qty * CLOSE):6.4f}]"+Fore.RESET)
-
                     order = {}
                     order["order_type"] = "sellall"
-                    # + order["funds"] = False
+                    # = order["funds"] = False
                     order["side"] = "sell"
                     order["size"] = truncate(g.subtot_qty, 5)
                     order["price"] = CLOSE
-                    # + order["stop_price"] = CLOSE * 1 / cvars.get('closeXn')
-                    # + order["upper_stop_price"] = CLOSE * 1
+                    # = order["stop_price"] = CLOSE * 1 / cvars.get('closeXn')
+                    # = order["upper_stop_price"] = CLOSE * 1
                     order["pair"] = cvars.get("pair")
                     order["state"] = "submitted"
                     order["record_time"] = f"{dfline['Date']}"
                     order["uid"] = get_seconds_now()
                     state_wr("order", order)
 
-                    # + ! sell all and clear the counters
+                    # ! sell all and clear the counters
                     state_wr('open_buys', [])
                     state_wr('qty_holding', [])
 
@@ -2524,20 +2508,16 @@ def trigger_bb3avg(df, **kwargs):
 
     g.df_buysell = g.df_buysell.shift(periods=1)
 
-    # + ! add new data to first row
+    # ! add new data to first row
     df['bb3avg_sell'] = df.apply(lambda x: tfunc(x, action="sell", df=df, ax=ax), axis=1)
     df['bb3avg_buy'] = df.apply(lambda x: tfunc(x, action="buy", df=df, ax=ax), axis=1)
 
     if g.avg_price > 0:
         ax.axhline(g.avg_price, color="indigo", linewidth=1, alpha=1)
 
-    tmp = g.df_buysell.iloc[::-1]
+    tmp = g.df_buysell.iloc[::-1] # ! here we have to invert the array to get the correct order
     p1 = mpf.make_addplot(tmp.buy, ax=ax, scatter=True, color="red", markersize=100, alpha=1, marker=6)  # + ^
     p2 = mpf.make_addplot(tmp.sell, ax=ax, scatter=True, color="green", markersize=100, alpha=1, marker=7)  # + v
-
-    # if cvars.get('pct_running') < 0:
-    #     print(f"pct_gain_list=({g.subtot_value}/{g.subtot_cost})")
-    #     waitfor()
 
     return [[p1], [p2]]
 

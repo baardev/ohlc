@@ -22,9 +22,9 @@ subtot_sold = float("Nan")
 curr_qty = float("Nan")
 curr_cost = float("Nan")
 current_run_count = 0
-purch_qty = False  # + ! loaded on main from cvars  (min amount for CB = 0.01)
-purch_qty_adj_pct = False  # + ! loaded on main from cvars
-purch_qty_adj_qty = False  # + ! loaded on main from cvars
+purch_qty = False  # ! loaded in main from cvars  (min amount for CB = 0.01)
+purch_qty_adj_pct = False  # ! loaded in main from cvars
+purch_qty_adj_qty = False  # ! loaded in main from cvars
 
 pct_gain_list = []
 pnl_record_list = []
@@ -61,7 +61,7 @@ wordlabel = "unnamed"
 autoclear = False
 cooldown = 0
 
-# + ! theSe are the only fields allowed for the coinbase order(s), as determined by 'cb_order.py'
+# ! these are the only fields allowed for the coinbase order(s), as determined by 'cb_order.py'
 cflds = {
     'type': "--type",
     'side': "--side",
@@ -75,14 +75,14 @@ cflds = {
 }
 
 ansi = {
-    # + 'xxxx': '\u001b[30m'  # + black
-    # + ,'xxxx': '\u001b[31m'     # + red
+    # 'xxxx': '\u001b[30m'  # + black
+    # ,'xxxx': '\u001b[31m'     # + red
     'INFO': '\u001b[32m',  # + green
-    # + ,'xxxx': '\u001b[33m'  # + yellow
-    # + ,'xxxx': '\u001b[34m'    # + blue
-    # + ,'xxxx': '\u001b[35m' # + magenta
-    # + ,'xxxx': '\u001b[36m'    # + cyan
-    # + ,'xxxx': '\u001b[37m'   # + white
+    # ,'xxxx': '\u001b[33m'  # + yellow
+    # ,'xxxx': '\u001b[34m'    # + blue
+    # ,'xxxx': '\u001b[35m' # + magenta
+    # ,'xxxx': '\u001b[36m'    # + cyan
+    # ,'xxxx': '\u001b[37m'   # + white
     'reset': '\u001b[0m'  # + reset
 }
 
@@ -90,7 +90,7 @@ logit = False
 
 _siglft = []
 
-# + general global place to store things
+# * general global place to store things
 bag = {
     "siglft": [],
     "sigfft": [],

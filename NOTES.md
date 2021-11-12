@@ -34,7 +34,7 @@ Check funds before buy
 
 ## References:
 
-exampels of plots for matploylib
+examples of plots for matploylib
 https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.show.html
 
 mpf and mpl
@@ -44,6 +44,14 @@ https://github.com/matplotlib/mplfinance/wiki/Acessing-mplfinance-Figure-and-Axe
 
 ## python packages needed
 
+# on Debian (duncanstroud.com)...
+to install python3.9
+https://www.vultr.com/docs/update-python3-on-debian
+
+apt install qtcreator
+apt install qtdeclarative5-dev
+
+pip install PyQt5
 pip install ccxt
 pip install matplotlib
 pip install mplfinance

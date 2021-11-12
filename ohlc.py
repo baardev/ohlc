@@ -1,6 +1,6 @@
 #!/usr/bin/python
 import matplotlib
-
+import PyQt5
 # ! other matplotplib GUI options
 # matplotlib.use("Qt5agg")
 # matplotlib.use('Tkagg')
