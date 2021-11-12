@@ -1,10 +1,12 @@
 #!/bin/bash
-
+cd /home/jw/src/jmcap/ohlc
 
 rm _*
 
-cd logs && echo > ohlc.log && cd -
-cd records && rm * && cd -
+cd logs && echo > ohlc.log 
+cd /home/jw/src/jmcap/ohlc
+cd records && rm *
+cd /home/jw/src/jmcap/ohlc
 rm results.*
 
 #zip *order* archive.zip
@@ -28,6 +30,7 @@ tail -f /var/lib/mysql/jw-box.log &
 mysql -ujmc -p6kjahsijuhdxhgd jmcap -e "SELECT SUM(orders.price * orders.size)  as totcost, orders.price,  sum(orders.size),orders.side FROM orders group by orders.side;"
 
 EOF
+
 
 
 ./ohlc.py --clear --batch
