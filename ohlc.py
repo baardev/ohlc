@@ -82,9 +82,11 @@ o.state_wr("purch_qty", g.purch_qty)
 g.purch_qty_adj_pct = o.cvars.get("purch_qty_adj_pct")
 
 if o.cvars.get("datatype") == "live":
+    g.interval = 10
+else:
+    g.interval = 10000
     # ! 1sec = 1000
     # ! 300000 = 5min
-    g.interval = 3000 if o.cvars.get("timeframe") == "5m" else g.interval  # ! JWFIX
 
 # * create the global buy/sell and all_records dataframes
 g.df_allrecords = pd.DataFrame()
@@ -469,6 +471,5 @@ def working(k):
     g.df_allrecords = g.df_allrecords.append(ohlc.tail(1),ignore_index=True)
 
 #   frames=<n>, n is completely arbitrary
-# + ani = animation.FuncAnimation(fig=fig, func=animate, frames=1086400, interval=g.interval, repeat=True)
-ani = animation.FuncAnimation(fig=fig, func=animate, frames=1086400, interval=10000, repeat=True)
+ani = animation.FuncAnimation(fig=fig, func=animate, frames=1086400, interval=g.interval, repeat=True)
 mpf.show()
