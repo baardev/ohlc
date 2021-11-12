@@ -1115,7 +1115,15 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
         os.remove(fn)
         ohlc['ID'] = range(len(ohlc))
 
-    # + * data loaded
+    # * data loaded
+    # * check to see if the price has changed
+    g.this_close = ohlc['Close'][-1]
+    if g.this_close != g.last_close:
+        g.logit.info("Price change")
+        os.system(f"aplay assets/laser.wav > /dev/null 2>&1")
+    g.last_close = g.this_close
+
+    # * save last Close valuie
 
     ohlc.Open = ohlc.Open.apply(lambda x: x * conversion)
     ohlc.High = ohlc.High.apply(lambda x: x * conversion)

@@ -60,6 +60,9 @@ is_first_buy = True
 wordlabel = "unnamed"
 autoclear = False
 cooldown = 0
+last_close = 0
+this_close = 0
+
 
 # ! these are the only fields allowed for the coinbase order(s), as determined by 'cb_order.py'
 cflds = {

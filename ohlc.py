@@ -469,5 +469,6 @@ def working(k):
     g.df_allrecords = g.df_allrecords.append(ohlc.tail(1),ignore_index=True)
 
 #   frames=<n>, n is completely arbitrary
-ani = animation.FuncAnimation(fig=fig, func=animate, frames=1086400, interval=g.interval, repeat=True)
+# + ani = animation.FuncAnimation(fig=fig, func=animate, frames=1086400, interval=g.interval, repeat=True)
+ani = animation.FuncAnimation(fig=fig, func=animate, frames=1086400, interval=10000, repeat=True)
 mpf.show()

@@ -17,7 +17,7 @@ import coinbase
 import lib_ohlc as o
 import pickle
 import pprint as pp
-# + import logging
+import logging
 import lib_globals as g
 import json
 from decimal import Decimal
@@ -27,6 +27,17 @@ from lib_cvars import Cvars
 # + !  ?// 🟠 🔥 🏹 🎯 ❗ 📝 📈 👇 👆📉 ▼ ▲ ⭐  ✅ ═
 
 o.cvars = Cvars(g.cfgfile)
+
+g.logit = logging
+g.logit.basicConfig(
+    filename="/home/jw/src/jmcap/ohlc/logs/ohlc.log",
+    filemode='a',
+    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+    datefmt='%H:%M:%S',
+    level=o.cvars.get('logging')
+)
+stdout_handler = g.logit.StreamHandler(sys.stdout)
+
 
 BASE = False
 QUOTE = False
@@ -259,8 +270,8 @@ if a['_cancelall']:
     rs['id'] = 'noid'
     rs['settled'] = True
     order_id = get_order_id(rs)
-    g.logging.info("-------- cancellall")
-    g.logging.debug([rs])
+    g.logit.info("-------- cancellall")
+    g.logit.debug([rs])
     # + logging.debug(rs)
     rs_ary["message"] = 'All orders cancelled'
 
@@ -279,8 +290,8 @@ if a['_sellall']:
         size=baseTot,
     )
     order_id = get_order_id(rs)
-    g.logging.info("-------- sellall")
-    g.logging.debug([rs])
+    g.logit.info("-------- sellall")
+    g.logit.debug([rs])
 
 
     # + rs_ary['settled'] = 'False'
@@ -303,13 +314,13 @@ if a['_order_type'] == "market":
         # + o.waitfor()
         rs = ac.place_market_order(product_id=a['_pair'],side=a['_side'], size=a['_size'])
         order_id = get_order_id(rs)
-        g.logging.info("-------- market buy")
-        g.logging.debug(rs)
+        g.logit.info("-------- market buy")
+        g.logit.debug(rs)
         rs_ary["message"] = 'Market Buy order submitted'
     else:
         msg =  f"Insufficient funds ({quote_bal:10f} BTC is not enough to buy {a['_size']} ETH )"
         rs_ary["message"] = msg
-        g.logging.info(msg)
+        g.logit.info(msg)
         exit()
 
 # + * ┌───────────────────────────────────────────────────
