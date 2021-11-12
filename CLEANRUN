@@ -10,11 +10,11 @@ cd /home/jw/src/jmcap/ohlc
 rm results.*
 
 #zip *order* archive.zip
-#rm *order*
-#mysql -ujmc -p6kjahsijuhdxhgd jmcap -e "delete from orders where session is not null"
-#rm -rf __pycache__
-#rm nohup.out
-#clear
+rm *order*
+mysql -ujmc -p6kjahsijuhdxhgd jmcap -e "delete from orders where session is not null"
+rm -rf __pycache__
+rm nohup.out
+clear
 
 cat<<EOF
 
