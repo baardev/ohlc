@@ -107,8 +107,10 @@ def update_db(tord, nsecs):
 
         cmd = f"insert into orders (uid) values ('{nsecs}')"
         sqlex(cmd)
+        g.logit.debug(cmd)
         cmd = f"UPDATE orders SET {argstr[1:]} where uid='{nsecs}'".replace("'None'", "NULL")
         sqlex(cmd)
+        g.logit.debug(cmd)
 
         g.cursor.close()  # ! JWFIX - open and close here?
     return
@@ -411,9 +413,9 @@ def save_results():
 
     #* now save the df_allrecords
 
-    print(g.df_allrecords)
-    print("SAVE ALLRECORDS")
-    cvars.save(g.df_allrecords, f"_allrecords_{g.instance_num}.json")
+    fn = f"_allrecords_{g.instance_num}.json"
+    g.logit.debug(f"Save {fn}")
+    cvars.save(g.df_allrecords, fn)
 
 
 def get_datetime_str():
