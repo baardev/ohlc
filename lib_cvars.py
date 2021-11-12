@@ -45,6 +45,8 @@ class Cvars:
         g.logit.debug(f"Saving to file: {filename}")
 
     def load(self,filename, **kwargs):
+        print(filename)
+        exit()
         df = pd.read_json(filename, orient='split', compression='infer')
         try:
             g.logit.debug(f"Trimming df to {kwargs['maxitems']}")
