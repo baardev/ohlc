@@ -74,6 +74,35 @@ pip install mysqlclient
 pip install panzoom
 pip install coinbase_python3
 
+# rsync
+rsync -avr /home/jw/src/jmcap/ohlc/  jw@duncanstroud.com:/home/jw/src/jmcap/ohlc/
+
+
+# remote connectng
+
+https://en.wikipedia.org/wiki/Xvfb#Usage_examples
+
+needed to ...
+sudo ln -s /usr/lib/x86_64-linux-gnu/libxcb-util.so.0 /usr/lib/x86_64-linux-gnu/libxcb-util.so.1
+
+# run virtual screen manager
+export DISPLAY=:1
+Xvfb :1 -screen 0 1910x1280x24 &
+fluxbox &
+x11vnc -display :1 -bg -nopw -listen localhost -xkb
+
+# tunnel to localhost
+ssh -N -T -L 5900:localhost:5900 jw@duncanstroud.com
+
+#connect to localhost
+vncviewer -encodings 'copyrect tight zrle hextile' localhost:5900
+vncviewer -geometry 1920x1280 localhost:5900
+
+
+# shutdown vnc
+x11vnc -R stop
+ps -ef |grep fluxbox|grep -v grep|awk '{print "kill -9 "$2}'|sh
+ps -ef |grep /usr/bin/terminator|grep -v grep|awk '{print "kill -9 "$2}'|sh
 
 ## Speed tests
 with save = 16.05s user 6.54s system 45% cpu 49.787 total
