@@ -62,12 +62,13 @@ pip install pynput
 pip install pandas
 pip install tabloo
 pip install coinbasepro
+pip install coinbase
 pip install colorama
 pip install xlsxwriter
 pip install mysqlclient (may have needed 'sudo apt-get install libmysqlclient-dev')
 pip install scipy
 pip install pandasgui   
-
+pip install simplejson
 
 (can't install on 3.5 duncanstroud.com)
 

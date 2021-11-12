@@ -23,7 +23,7 @@
   
   
   
-  ,"datatype": "backtest"
+  ,"datatype": "live"
   ,"csvname": "results.csv"
   ,"datadir":"/home/jw/src/jmcap/ohlc/data"
 
@@ -160,6 +160,7 @@
   ,"loc_plots_bb_3":       0       ,"plots_bb_3": true
 
 
+  ,"loc_plots_macd":       5       ,"plots_macd": true
 
   ,"loc_plots_sigffmb":  2        ,"plots_sigffmb": true, "plots_sigffmb_hide": true
   ,"loc_plots_sigffmap":  2        ,"plots_sigffmap": true
