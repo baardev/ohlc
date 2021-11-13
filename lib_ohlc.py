@@ -266,7 +266,7 @@ def get_running_bal():
             profit = sum(sells) - sum(buys)
             tot_profit = tot_profit + profit
             # print(Fore.YELLOW+f"PROFIT:------------------ {sum(sells)} - {sum(buys)} = {profit}"+Fore.RESET)
-            res = Fore.CYAN + f"[{i:04d}] {Fore.CYAN}{adate} {Fore.WHITE}{tot_profit:6.0f}" + Fore.RESET
+            res = Fore.CYAN + f"[{i:04d}] {Fore.CYAN}{adate} {Fore.YELLOW}${tot_profit:6.0f}" + Fore.RESET
         i += 1
     return res
 
@@ -760,17 +760,25 @@ def get_latest_time(ohlc):
     return (ohlc.Date[int(len(ohlc.Date) - 1)])
 
 
-def get_last_price(exchange):
+def get_last_price(exchange, **kwargs):
+    quiet = False
+    try:
+        quiet = kwargs['quiet']
+    except:
+        pass
     pair = cvars.get("price_conversion")
-    g.logit.debug("Remote connecting...(fetching ticker price)...", extra={'mod_name': 'lib_olhc'})
+    if not quiet:
+        g.logit.debug("Remote connecting...(fetching ticker price)...", extra={'mod_name': 'lib_olhc'})
     g.last_conversion = g.conversion
     if cvars.get("convert_price"):                      # * are we choosing to see the price in dollars?
         if cvars.get("offline_price"):                  # * do we want tegh live (slow) price can we live with the fixed (fast) price?
-            g.logit.info(f"Usinf fixed conversion rate: {g.conversion}")
+            if not quiet:
+                g.logit.info(f"Using fixed conversion rate: {g.conversion}")
             return cvars.get("offline_price")           # * if so, retuirn fixed price
     try:                                                # * otherwsie, get the live price
         g.conversion = exchange.fetch_ticker(pair)['last']
-        g.logit.info(f"Latest conversion rate: {g.conversion}")
+        if not quiet:
+            g.logit.info(f"Latest conversion rate: {g.conversion}")
         return g.conversion
     except:                                             # * which sometimes craps out
         g.logit.critical("Can't get price from Coinbase.  Check connection?")
@@ -1169,7 +1177,7 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
     # * check to see if the price has changed
     g.this_close = ohlc['Close'][-1]
     if g.this_close != g.last_close:
-        g.logit.info("Price change")
+        log2file("Price change","counter.log")
         os.system(f"aplay assets/laser.wav > /dev/null 2>&1")
     g.last_close = g.this_close
 
@@ -1193,6 +1201,10 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
 
     return ohlc
 
+def log2file(data,filename):
+    file1 = open(f"/home/jw/src/jmcap/ohlc/logs/{filename}","a")
+    file1.write(data+"\n")
+    file1.close()
 
 def get_opcldelta(df, **kwargs):
     ax = kwargs['ax']
@@ -2396,7 +2408,7 @@ def trigger_bb3avg(df, **kwargs):
 
                 if is_a_buy and (g.gcounter >= g.cooldown):
                     # * first get latest conversion price
-                    g.conversion = get_last_price(g.spot_src)
+                    g.conversion = get_last_price(g.spot_src, quiet=True)
 
                     # * set cooldown by setting the next gcounter number that will freeup buys
                     g.cooldown = g.gcounter + cvars.get("cooldown")

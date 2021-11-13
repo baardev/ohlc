@@ -166,7 +166,7 @@ def animate(k):
 #   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓    LOOP    ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 #   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 def working(k):
-    g.logit.info(f"[{g.gcounter}] ---------------------", extra={'mod_name': 'olhc'})
+    o.log2file(f"[{g.gcounter}]","counter.log")
     g.gcounter = g.gcounter + 1
     #   num_axes = len(ax)
     g.prev_md5 = o.cvars.this_md5
