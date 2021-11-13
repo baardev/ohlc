@@ -1,0 +1,101 @@
+#!/bin/python
+import os
+import time
+import lib_ohlc as o
+import pprint as pp
+import json
+
+nkey = "PROD"
+
+xlst = [
+    {"rt_id": 1, "sleep": 1},
+
+]
+# !! MAKE SURE YOU COMMENT OUT BELOW ANY VARS SET ABOVE
+
+for i in range(len(xlst)):
+    # xlst[i]["backtestfile"]='"bull_1"'
+    xlst[i]["figsize"]="[6,4]"
+    # xlst[i]["datalength"]=4200
+    # xlst[i]["maxbuys"]=100
+    # xlst[i]["datawindow"]=28
+    # xlst[i]["testpair"]= '["BUY_CltLowBbavg", "SELL_HgtHiBbavg_CgtA"]'
+    # xlst[i]["bbstd"]= "[2.1 , 2.0 , 1.9]"
+    # xlst[i]["bblengths"]= "[12, 17, 23]"
+    # xlst[i]["cooldown"]= 3
+    # xlst[i]["purch_qty_adj_pct"]: 100
+    # xlst[i]["purch_qty_adj_pct"]: 100
+
+# vars = o.cvars.get()
+# pp.pprint(vars['mbpfilter'])
+sleeping = False
+def fix4json(v):
+    try:
+        nv = float(v)
+        return(v)
+    except:
+        return f'"{v}"'
+
+newlines = []
+
+newfn = f"_{nkey}"
+for j in range(len(xlst)):
+    with open("config_0.hcl") as f:
+        lines = f.read().splitlines(False)
+    vals = xlst[j]
+
+    for i in range(len(lines)):
+        for key in vals:
+            if key in lines[i]:
+                # print(f"[{key}] FOUND",lines[i])
+                newline = f",\"{key}\":{vals[key]}"
+                newline = fix4json(newline)
+                newline = f",\"{key}\":{vals[key]}".replace("\'","\"")
+                # print(newline)
+                lines[i]= newline
+        # else:
+        #     newlines.append(line)
+    file1 = open(f"{newfn}{j}", 'w')
+    print(f"writing to: {newfn}{j}")
+    for l in lines:
+        file1.write(l+"\n")
+
+    ndir = f"{nkey}{j}"
+
+    # fdata = o.cvars.get_json_from_file(f"{ndir}/config_0.hcl")
+    # vars = json.loads(fdata)
+    #
+    # vars['mbpfilter']['Wn'] = [
+    #     [1e-06, 0.166667],
+    #     [1e-06, 0.166667],
+    #     [1e-06, 0.166667],
+    #     [0.833333, 0.999999],
+    #     [0.833333, 0.999999],
+    #     [0.833333, 0.999999]
+    # ]
+    # pp.pprint(vars['mbpfilter'])
+    #
+    # outfile = open(f'{ndir}/config_0.hcl', 'w')
+    # outfile.write(json.dumps(vars, indent=4))
+    # outfile.close()
+
+    print(f"deleting {ndir}")
+    os.system(f"rm -rf {ndir}")
+
+    print(f"mkdir {ndir}")
+    os.makedirs(ndir, exist_ok=True)
+    os.system(f"./mkLIVE {ndir}")
+    file1.close()
+
+    cmd = f"cp {newfn}{j} {ndir}/config_0.hcl"
+    print(cmd)
+    os.system(cmd)
+
+    cmd = f'terminator -e > /dev/null 2>&1 "cd {ndir} && ./CLEANRUN -b"'
+    print(cmd)
+    print("------------------------------------------------------")
+    os.system(cmd)
+
+    if "sleep" in vals:
+        print("sleeping")
+        time.sleep(vals['sleep'])

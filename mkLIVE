@@ -1,0 +1,47 @@
+#!/bin/bash
+
+if [ "$1" == "" ]; then
+    echo "ERROR: Missing DIR name"
+    exit 1
+fi
+
+
+mkdir $1 > /dev/null 2>&1
+mkdir $1/configs > /dev/null 2>&1
+mkdir $1/assets > /dev/null 2>&1
+mkdir $1/data > /dev/null 2>&1
+mkdir $1/logs > /dev/null 2>&1
+mkdir $1/records > /dev/null 2>&1
+mkdir $1/orders > /dev/null 2>&1
+
+cp assets/* $1/assets > /dev/null 2>&1
+cp data/*   $1/data   > /dev/null 2>&1
+
+
+if [ "$2" == "C" ]; then
+    echo "INCLUDING 'config_0.hcl'"
+    cp config_0.hcl $1/
+else
+    echo "NOT INCLUDING 'config_0.hcl'"
+fi
+
+cp ohlc.py            $1/
+cp lib_cvars.py       $1/
+cp lib_globals.py     $1/
+cp lib_ohlc.py        $1/
+cp lib_panzoom.py     $1/
+cp lib_listener.py    $1/
+cp lib_tests_class.py $1/
+cp CLEANRUN           $1/
+cp cb_order.py        $1/
+cp state_0.json       $1/
+#cp config_0.hcl		    $1/
+cp auth_client.py     $1/
+cp public_client.py   $1/
+
+cp view.py            $1/
+cp merge.py           $1/
+cp liveview.py        $1/
+cp ohlc_backdata.py   $1/
+cp NOTES.md           $1/
+cp pread.py           $1/
