@@ -95,8 +95,9 @@ g.df_buysell = pd.DataFrame(index=range(g.datawindow),
 g.cwd = os.getcwd().split("/")[-1:][0]
 
 # * ccxt doesn't yet support CB ohlcv data, so CB and binance charts will be a little off
-ticker_src = ccxt.binance()
-spot_src = ccxt.coinbase()
+g.ticker_src = ccxt.binance()
+g.spot_src = ccxt.coinbase()
+g.conversion = o.get_last_price(g.spot_src)
 
 # * set up the canvas and windows
 fig = c.figure_pz(figsize=(o.cvars.get("figsize")[0], o.cvars.get("figsize")[1]), dpi=96)
@@ -199,7 +200,7 @@ def working(k):
     # + get the source data as a dataframe
     # + ───────────────────────────────────────────────────────────────────────────────────────
 
-    ohlc = o.get_ohlc(ticker_src, spot_src, since=t.since)
+    ohlc = o.get_ohlc(g.ticker_src, g.spot_src, since=t.since)
 
     # ! ───────────────────────────────────────────────────────────────────────────────────────
     # ! CHECK THE SIZE OF THE DATAFRAME and Gracefully exit on error or command

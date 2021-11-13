@@ -220,7 +220,55 @@ def orders(order, **kwargs):
             exit()
 
     update_db(tord, nsecs)
+
     return
+
+def get_running_bal():
+    g.dbc, g.cursor = getdbconn()
+    cmd = f"select * from orders" # where session like 'winemake%'"
+    rs = sqlex(cmd)
+    g.cursor.close()  # ! JWFIX - open and close here?
+
+    c_id = 0
+    c_uid = 1
+    c_pair = 2
+    c_fees = 3
+    c_price = 4
+    c_stop_price = 5
+    c_upper_stop_price = 6
+    c_size = 7
+    c_funds = 8
+    c_record_time = 9
+    c_order_time = 10
+    c_side = 11
+    c_type = 12
+    c_state = 13
+    c_session = 14
+
+    buys = []
+    sells = []
+
+    tot_profit = 0
+    i = 1
+    res = False
+    for r in rs:
+        aclose = r[c_price]
+        aside = r[c_side]
+        aqty = r[c_size]
+        adate = r[c_order_time]
+        v =aqty*aclose
+        if aside == "buy":
+            # print(Fore.RED + f"Bought: {(aqty*aclose):=6.4f}"+Fore.RESET)
+            buys.append(v)
+        if aside == "sell":
+            # print(Fore.GREEN + f"  Sold: {(aqty*aclose):6.4f}"+Fore.RESET)
+            sells.append(v)
+            profit = sum(sells) - sum(buys)
+            tot_profit = tot_profit + profit
+            # print(Fore.YELLOW+f"PROFIT:------------------ {sum(sells)} - {sum(buys)} = {profit}"+Fore.RESET)
+            res = Fore.CYAN + f"[{i:04d}] {Fore.CYAN}{adate} {Fore.WHITE}{tot_profit:6.0f}" + Fore.RESET
+        i += 1
+    return res
 
 
 def handleEx(ex, related):
@@ -673,9 +721,13 @@ def make_title(**kwargs):
     return ft
 
 
-def getdbconn():
-    dbconn = mdb.connect(user="jmc", passwd="6kjahsijuhdxhgd", host="localhost", db="jmcap")
-    # + cursor = dbconn.cursor(mdb.cursors.DictCursor)
+def getdbconn(**kwargs):
+    host = "localhost"
+    try:
+        host = kwargs["host"]
+    except:
+        pass
+    dbconn = mdb.connect(user="jmc", passwd="6kjahsijuhdxhgd", host=host, db="jmcap")
     cursor = dbconn.cursor()
     return dbconn, cursor
 
@@ -708,20 +760,21 @@ def get_latest_time(ohlc):
     return (ohlc.Date[int(len(ohlc.Date) - 1)])
 
 
-def get_last_price(pair, exchange):
+def get_last_price(exchange):
+    pair = cvars.get("price_conversion")
     g.logit.debug("Remote connecting...(fetching ticker price)...", extra={'mod_name': 'lib_olhc'})
-    try:
-        if cvars.get("convert_price"):
-            if cvars.get("offline_price"):
-                return cvars.get("offline_price")
-            else:
-                lastprice = exchange.fetch_ticker(pair)['last']
-        else:
-            lastprice = 1
-        return lastprice
-    except:
-        g.logit.critical("Can't get price from Coinbase.  Check connection?", extra={'mod_name': 'lib_olhc'})
-    return 60000  # + 
+    g.last_conversion = g.conversion
+    if cvars.get("convert_price"):                      # * are we choosing to see the price in dollars?
+        if cvars.get("offline_price"):                  # * do we want tegh live (slow) price can we live with the fixed (fast) price?
+            g.logit.info(f"Usinf fixed conversion rate: {g.conversion}")
+            return cvars.get("offline_price")           # * if so, retuirn fixed price
+    try:                                                # * otherwsie, get the live price
+        g.conversion = exchange.fetch_ticker(pair)['last']
+        g.logit.info(f"Latest conversion rate: {g.conversion}")
+        return g.conversion
+    except:                                             # * which sometimes craps out
+        g.logit.critical("Can't get price from Coinbase.  Check connection?")
+        return g.last_conversion                        # * in which case, use last good value
 
 
 def truncate(number, digits) -> float:
@@ -970,13 +1023,9 @@ def add_2_bb_avg_plots(ohlc, **kwargs):
 # + - GETS
 
 def get_ohlc(ticker_src, spot_src, **kwargs):
-    # + global g.idx
-    # + global datawindow
-    # + def get_ohlc(exchange, conversion, cvars):
     pair = cvars.get("pair")
     timeframe = cvars.get("timeframe")
     since = kwargs['since']
-    conversion = get_last_price(cvars.get("price_conversion"), spot_src) if cvars.get("convert_price") else 1
     normalize = cvars.get("normalize")
 
     pup = cvars.get("spread") + 1
@@ -1126,10 +1175,10 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
 
     # * save last Close valuie
 
-    ohlc.Open = ohlc.Open.apply(lambda x: x * conversion)
-    ohlc.High = ohlc.High.apply(lambda x: x * conversion)
-    ohlc.Low = ohlc.Low.apply(lambda x: x * conversion)
-    ohlc.Close = ohlc.Close.apply(lambda x: x * conversion)
+    ohlc.Open = ohlc.Open.apply(lambda x: x * g.conversion)
+    ohlc.High = ohlc.High.apply(lambda x: x * g.conversion)
+    ohlc.Low = ohlc.Low.apply(lambda x: x * g.conversion)
+    ohlc.Close = ohlc.Close.apply(lambda x: x * g.conversion)
 
     if normalize:
         ohlc.Open = normalize_col(ohlc.Open)
@@ -1719,9 +1768,9 @@ def get_sigffmb2(df, **kwargs):
         df[colname],
         ax=ax,
         type="line",
-        color=cvars.get("sigffmbstyle")['color'][band],
-        width=cvars.get("sigffmbstyle")['width'],
-        alpha=cvars.get('sigffmbstyle')['alpha'],
+        color=cvars.get("sigffmb2style")['color'][band],
+        width=cvars.get("sigffmb2style")['width'],
+        alpha=cvars.get('sigffmb2style')['alpha'],
     )
 
     return [plots_sigffmb2_list]
@@ -1750,14 +1799,16 @@ def backfill(collected_data, **kwargs):
 
 
 def sqlex(cmd):
-    g.logit.debug(f"SQL Command:{cmd}", extra={'mod_name': 'lib_olhc'})
+    # + g.logit.debug(f"SQL Command:{cmd}", extra={'mod_name': 'lib_olhc'})
+    # + g.logit.debug(f"SQL Command:{cmd}", extra={'mod_name': 'lib_olhc'})
     try:
         g.cursor.execute(cmd)
+        rs = g.cursor.fetchall()
     except Exception as ex:
         handleEx(ex, cmd)
         exit(1)
     g.dbc.commit()
-
+    return(rs)
 
 def calcfees(rs_ary):
     fees = 0
@@ -1930,11 +1981,20 @@ def plots_sigffmb(ohlc, **kwargs):
     # + delta = (amax-amin)/100 # + * 1%
     delta = (amax - amin) * (cvars.get('lowpctline') / 100)
 
+    ax.axhline(amin + delta,
+        color=cvars.get("ffmaplolimstyle")['color'],
+        linewidth=cvars.get("ffmaplolimstyle")['linewidth'],
+        alpha=cvars.get('ffmaplolimstyle')['alpha']
+    )
+    ax.axhline(amax - delta,
+        color=cvars.get("ffmaphilimstyle")['color'],
+        linewidth=cvars.get("ffmaphilimstyle")['linewidth'],
+        alpha=cvars.get('ffmaphilimstyle')['alpha']
+    )
+
+
     ohlc['ffmapllim'] = amin + delta
     ohlc['ffmapulim'] = amax - delta
-
-    ax.axhline(amin + delta, color='magenta')
-    ax.axhline(amax - delta, color='cyan')
 
     plots = add_plots(plots, [plots_sigffmap_list])
 
@@ -1982,9 +2042,9 @@ def plots_sigffmb2(ohlc, **kwargs):
         ohlc['ffmap2'],
         ax=ax,
         type="line",
-        color=cvars.get("ffmapstyle")['color'],
-        width=cvars.get("ffmapstyle")['width'],
-        alpha=cvars.get('ffmapstyle')['alpha'],
+        color=cvars.get("ffmap2style")['color'],
+        width=cvars.get("ffmap2style")['width'],
+        alpha=cvars.get('ffmap2style')['alpha'],
     )
 
     patches.append(mpatches.Patch(color=cvars.get('ffmapstyle')['color'], label="Rohlc(sum(6f)^2)"))
@@ -1998,8 +2058,16 @@ def plots_sigffmb2(ohlc, **kwargs):
     ohlc['ffmapllim2'] = amin + delta
     ohlc['ffmapulim2'] = amax - delta
 
-    ax.axhline(amin + delta, color="red")
-    ax.axhline(amax - delta, color='green')
+    ax.axhline(amin + delta,
+        color=cvars.get("ffmap2lolimstyle")['color'],
+        linewidth=cvars.get("ffmap2lolimstyle")['linewidth'],
+        alpha=cvars.get('ffmap2lolimstyle')['alpha']
+    )
+    ax.axhline(amax - delta,
+        color=cvars.get("ffmap2hilimstyle")['color'],
+        linewidth=cvars.get("ffmap2hilimstyle")['linewidth'],
+        alpha=cvars.get('ffmap2hilimstyle')['alpha']
+    )
 
     plots = add_plots(plots, [plots_sigffmap_list])
     return plots
@@ -2078,7 +2146,8 @@ def plots_rohlc(ohlc, **kwargs):
     # + ! can;t to -1 as teh **2 makes it positive, identical to the ohlc
     # + ohlc["rohlc"] = ohlc["Close"] * -1
 
-    ohlc["rohlc"] = 10000 - ohlc["Close"]
+    # ohlc["rohlc"] = 10000 - ohlc["Close"]
+    ohlc["rohlc"] = ohlc["Close"].max() - ohlc["Close"]
 
     plots_rohlc_list = [mpf.make_addplot(
         ohlc["rohlc"],
@@ -2326,6 +2395,9 @@ def trigger_bb3avg(df, **kwargs):
 
 
                 if is_a_buy and (g.gcounter >= g.cooldown):
+                    # * first get latest conversion price
+                    g.conversion = get_last_price(g.spot_src)
+
                     # * set cooldown by setting the next gcounter number that will freeup buys
                     g.cooldown = g.gcounter + cvars.get("cooldown")
                     # * we are in, so reset the buy signal for next run
@@ -2422,6 +2494,9 @@ def trigger_bb3avg(df, **kwargs):
                 tc = Tests(cvars, dfline, df, idx=g.idx)
                 is_a_sell = tc.selltest(cvars.get('testpair')[1]) or g.external_sell_signal
                 if is_a_sell:
+                    # * first get latest conversion price
+                    g.conversion = get_last_price(g.spot_src)
+
                     g.cooldown = 0  # * reset cooldown
                     g.buys_permitted = True  # * Allows buys again
                     g.purch_qty = cvars.get("purch_qty")  # * reset purchase qty
@@ -2504,6 +2579,9 @@ def trigger_bb3avg(df, **kwargs):
                     g.avg_price = float("Nan")
 
                     orders(order)
+
+                    # * now print a rinning tota;
+                    print(get_running_bal())
 
                     announce(what="sell")
 

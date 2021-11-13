@@ -1,3 +1,6 @@
+## Todo
+Check JWFIX notes
+
 ## Process to generate backdata
 
 run generator with -d as the starting epoch stamp, and -i as the starting counter
@@ -20,38 +23,29 @@ sample data
 2021-09-05T03:19:00 for https://www.utilities-online.info/epochtime = 1630822740
 2021-09-06T00:04:00 for https://www.utilities-online.info/epochtime = 1630897440
 
-https://esqsoft.com/javascript_examples/date-to-epoch.htm
-
-
-
-
-
-
-
-## Todo
-Check funds before buy
+more info...
+    https://esqsoft.com/javascript_examples/date-to-epoch.htm
 
 
 ## References:
 
-examples of plots for matploylib
+examples of plots for matplotlib
 https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.show.html
 
 mpf and mpl
 https://github.com/matplotlib/mplfinance/wiki/Acessing-mplfinance-Figure-and-Axes-objects
 
 
-
-## python packages needed
+## python packages needed 
 
 # on Debian (duncanstroud.com)...
-to install python3.9
-https://www.vultr.com/docs/update-python3-on-debian
+to install python3.9 -> https://www.vultr.com/docs/update-python3-on-debian
 
 apt install qtcreator
 apt install qtdeclarative5-dev
 apt install gnumeric
 
+(may need to use 'pip3' on Debian)
 
 pip install PyQt5
 pip install ccxt
@@ -74,39 +68,34 @@ pip install simplejson
 (can't install on 3.5 duncanstroud.com)
 
 pip install MySQLdb
-pip install mysqlclient
-pip install panzoom
 pip install coinbase_python3
 
 # rsync
 rsync -avr --exclude 'safe/*' --exclude 'venv/*' /home/jw/src/jmcap/ohlc/ jw@duncanstroud.com:/home/jw/src/jmcap/ohlc/
 
-# remote connectng
+## remote connecting
 
-https://en.wikipedia.org/wiki/Xvfb#Usage_examples
+Docs: https://en.wikipedia.org/wiki/Xvfb#Usage_examples
 
 needed to ...
 sudo ln -s /usr/lib/x86_64-linux-gnu/libxcb-util.so.0 /usr/lib/x86_64-linux-gnu/libxcb-util.so.1
 
-# run virtual screen manager
+# run virtual screen manager on server
 export DISPLAY=:1
 Xvfb :1 -screen 0 1910x1280x24 &
 fluxbox &
 x11vnc -display :1 -bg -nopw -listen localhost -xkb
 
-# tunnel to localhost
+# tunnel to localhost locally
 ssh -N -T -L 5900:localhost:5900 jw@duncanstroud.com
 
 #view locally 
 vncviewer -geometry 1920x1280 localhost:5900
+vncviewer -encodings 'copyrect tight zrle hextile' localhost:5900 (args didn;t work for me)
 
-#connect to localhost
-vncviewer -encodings 'copyrect tight zrle hextile' localhost:5900
-vncviewer -geometry 1920x1280 localhost:5900
-
-
-# shutdown vnc
-x11vnc -R stop
+# To shutdown vncserver
+x11vnc -R stop (doesn;t always work)
+ps -ef |grep x11vnc|grep -v grep|awk '{print "kill -9 "$2}'|sh
 ps -ef |grep fluxbox|grep -v grep|awk '{print "kill -9 "$2}'|sh
 ps -ef |grep /usr/bin/terminator|grep -v grep|awk '{print "kill -9 "$2}'|sh
 
@@ -118,8 +107,7 @@ with mem-state = 16.21s user 6.61s system 54% cpu 42.095 total
 with file-state: 15.96s user 6.46s system 56% cpu 39.530 total  (faster!?!)
 
 
-##
-### coinbase specific utils
+## coinbase specific utils
 auth_client.py
 public_client.py
 cb_cltool.py
@@ -132,6 +120,7 @@ lib_globals.py
 lib_ohlc.py
 lib_panzoom.py
 lib_tests_class.py
+lib_listener.py
 
 ### Folders
 assets
@@ -153,7 +142,7 @@ ohlc_backdata.py
 liveview.py
 
 ### Misc utils
-batch.sh
+RUN 
 test_cb.sh
 launch.sh
 rep
@@ -173,48 +162,5 @@ NOTES.md
 ### Backups
 ohlc.zip
 
-
-
-
-
-# --------------------------------------------------------
-Run Name: ohlc/cotoneaster
-b01.C<BBAL / s01.C>A&C>BBAH
-
-Total % increase: 26.299028834534724
-Total % HODL: xxx
-Final % : xxx
-$ Total Profit: 33.01679999999997
-Instance: 0
-Max Cont. Buys: 26
-Delta Days: 6 days, 5:35:00
-Total buys: 103
-Total sells: 18
-runtime (m): 33.1
-Pair: ETH/BTC
-Data window: 72
-Buy/sell filter: [b01.C<BBAL / s01.C>A&C>BBAH]
-Config ID: configs/0_958c9777745f4f288422b3875ddb37d0.hcl
-Date: 2021-11-03 16:57:20
-Timeframe: 5m
-
-
------------------
-b01.C<BBAL / s01.C>BBAH
-
-Total % increase: 15.521933867801863
-Total % HODL: -33783.99999999997
-Final % : 33799.52193386777
-$ Total Profit: -8.27240000000009
-Instance: 0
-Max Cont. Buys: 22
-Delta Days: 4 days, 1:05:00
-Total buys: 78
-Total sells: 13
-runtime (m): 23.5
-Pair: ETH/BTC
-Data window: 72
-Buy/sell filter: [b01.C<BBAL / s01.C>A&C>BBAH]
-Config ID: configs/0_48d30f1b91134b299517c1523fb4fbb1.hcl
-Date: 2021-11-03 17:16:35
-Timeframe: 5m
+## Recovery instruction for fubared boot
+https://superuser.com/questions/111152/whats-the-proper-way-to-prepare-chroot-to-recover-a-broken-linux-installation
