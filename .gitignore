@@ -38,3 +38,4 @@ PULL
 config_0.hcl
 state_0.json
 _*
+PROD*
