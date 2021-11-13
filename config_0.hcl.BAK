@@ -3,24 +3,7 @@
 #* causes a ton of ugly syntax warnings.  So, this is just renamed to .hcl to make the editor happy.
 
 {
-  "0": 0
-# ! -------------------------------------------------
-# ! most comment edit for live config
-# ! -------------------------------------------------
-#  ,"sounds": true
-#  ,"offline": true
-
-#  ,"datatype": "random"
-#  ,"datatype": "backtest"
-  ,"datatype": "live"
-
-                        #! bb_bear=4572, bb_bull=5981, bb=9468
-  ,"datalength":216     #! MUST be > data-window * 2 - for random/backtest data only:: @5m 1d=288. 1w=2016, 1m=8640
-#  ,"datalength":588
-
-# ! -------------------------------------------------
-
-    ,"creds": {
+    "creds": {
         "name"    :"coinbase_sandbox" ,
         "provider":"coinbase"         ,
         "apitype" :"sandbox"          ,
@@ -30,10 +13,11 @@
     ,"purch_qty":0.1
     ,"purch_qty_adj_pct":30
     ,"columns": 2
+#    ,"sounds": true
     ,"mysql": true
     ,"display": true  #! turning off off display only results in a 5% speed increase
     ,"rt_id":0
-#    ,"bail_option_1":true
+    ,"bail_option_1":true
 
   #+ ┌────────────────────────────────────┐
   #+ │ STARTUP ONLY
@@ -44,12 +28,18 @@
   #+ ┌────────────────────────────────────┐
   #+ │ DATA
   #+ └────────────────────────────────────┘
+#  ,"datatype": "random"
+  ,"datatype": "backtest"
+#  ,"datatype": "live"
   ,"csvname": "results.csv"
   ,"datadir":"/home/jw/src/jmcap/ohlc/data"
 
   ,"backtestfile":"bb"
   ,"backtestmeta":"bb_DATA"
 
+  #! bb_bear=4572, bb_bull=5981, bb=9468
+  ,"datalength":9468      #! MUST be > data-window * 2 - for random/backtest data only:: @5m 1d=288. 1w=2016, 1m=8640
+#  ,"datalength":588
 
    #! for LIVE data 'data-window' value must match 'since' value... i.e. 72 @ 5m = 6hr
   ,"timeframe":"5m"   #! check that the timeframe listed here is support in the o.interval setter in ohlc.py
@@ -121,12 +111,12 @@
                  "name":"bandpass",
                  "N":1,   #! 4 is max for datawin of 28
                  "mx" : [  #! this is not used when normalizing the data, mainused for accentuating or damping certain bands
-                    12,    # * inverse of 0.083333, center val for band 1
-                    4,     # * inverse of 0.250000, center val for band 2
-                    2.4,   # * inverse of 0.416667, center val for band 3
-                    1.714, # * inverse of 0.583333, center val for band 4
-                    1.333, # * inverse of 0.750000, center val for band 5
-                    1.091  # * inverse of 0.916667, center val for band 6
+                    12,    # * inverse of 0.083333, center val for bald 1
+                    4,     # * inverse of 0.250000, center val for bald 2
+                    2.4,   # * inverse of 0.416667, center val for bald 3
+                    1.714, # * inverse of 0.583333, center val for bald 4
+                    1.333, # * inverse of 0.750000, center val for bald 5
+                    1.091  # * inverse of 0.916667, center val for bald 6
                   ],
                  "Wn": [
                     [0.000001, 0.166667 ] ,  #* 6 even divisions of 0-1
@@ -330,7 +320,7 @@
   ,"cooldown":2
           #! good pairs
 #  ,"testpair":["BUY_CltLowBbavg_ffmapLow","SELL_HgtHiBbavg_CoA"]
-#  ,"testpair":["BUY_CltLowBbavg_ffmapLow", "SELL_HgtHiBbavg_CoA_ffmapLow"]
+  ,"testpair":["BUY_CltLowBbavg_ffmapLow", "SELL_HgtHiBbavg_CoA_ffmapLow"]
   ,"testpair":["BUY_CltLowBbavg_ffmapLow", "SELL_HgtHiBbavg_ffmapLow"]
 
 
@@ -366,6 +356,8 @@
   #+ │ DEBUG & MISC
   #+ └────────────────────────────────────┘
   ,"save": true
+  ,"sounds": true
+  ,"offline": true
 #  ,"epoch_ms_delta": 86400000 #! 1 DAY
 #  ,"epoch_ms_delta": 3600000  #! 1 HR
 #  ,"epoch_ms_delta": 300000   #! 5 min

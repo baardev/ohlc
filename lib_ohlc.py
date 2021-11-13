@@ -768,7 +768,7 @@ def get_last_price(exchange, **kwargs):
         pass
     pair = cvars.get("price_conversion")
     if not quiet:
-        g.logit.debug("Remote connecting...(fetching ticker price)...", extra={'mod_name': 'lib_olhc'})
+        log2file("Remote connecting...(fetching ticker price)...", "counter.log")
     g.last_conversion = g.conversion
     if cvars.get("convert_price"):                      # * are we choosing to see the price in dollars?
         if cvars.get("offline_price"):                  # * do we want tegh live (slow) price can we live with the fixed (fast) price?
