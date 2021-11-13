@@ -1125,7 +1125,7 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
     if cvars.get("datatype") == "live":
         # + ! datawindow = datawindow - 1 # + index mismatch.  expecting 70, got 71
         # + !                             index mismatch.  expecting 72, got 71)
-        g.logit.info("Remote connecting (fetching OHLC...)", extra={'mod_name': 'lib_olhc'})
+        log2file("Remote connecting (fetching OHLC...)","counter.log")
         # + LOAD
         ohlcv = ticker_src.fetch_ohlcv(symbol=pair, timeframe=timeframe, since=since, limit=g.datawindow)
 
