@@ -84,7 +84,7 @@ g.purch_qty_adj_pct = o.cvars.get("purch_qty_adj_pct")
 if o.cvars.get("datatype") == "live":
     g.interval = 10000
 else:
-    g.interval = 10
+    g.interval = 1000
     # ! 1sec = 1000
     # ! 300000 = 5min
 
@@ -141,7 +141,6 @@ o.state_wr("session_name", f"{g.cwd} : {g.session_name}")
 #   canvas = FigureCanvasTkAgg(fig) #   keeps crosshairs, but stop moving
 #   canvas.mpl_connect('motion_notify_event', o.mouse_move)
 #   canvas.mpl_connect('key_press_event', o.keypress)
-
 def animate(k):
     this_logger = g.logit.getLogger()
     if g.verbose:
@@ -166,6 +165,7 @@ def animate(k):
 #   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓    LOOP    ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 #   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 def working(k):
+
     o.log2file(f"[{g.gcounter}]","counter.log")
     g.gcounter = g.gcounter + 1
     #   num_axes = len(ax)
@@ -200,7 +200,17 @@ def working(k):
     # + get the source data as a dataframe
     # + ───────────────────────────────────────────────────────────────────────────────────────
 
-    ohlc = o.get_ohlc(g.ticker_src, g.spot_src, since=t.since)
+    # * if we are on a 5 minutes ticker, which is publiched exactlyon the 5 minute mark, we don't ned to load
+    # * every 10 seconds.  We check teh epoch fro 5 minutes marks
+    epoch_time = int(time.time())
+    t5 = epoch_time % 300
+    if t5 < 20:   # * we are on a 10 second loop, which takes about 15 seconds, so anythign less that 20 - 25 seconds will not fire twice
+        g.can_load = True
+
+    if g.can_load:
+        # + print("Can load")
+        g.ohlc = o.get_ohlc(g.ticker_src, g.spot_src, since=t.since)
+    ohlc = g.ohlc
 
     # ! ───────────────────────────────────────────────────────────────────────────────────────
     # ! CHECK THE SIZE OF THE DATAFRAME and Gracefully exit on error or command

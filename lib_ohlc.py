@@ -1198,11 +1198,11 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
     if not state_r("from"):
         state_wr("from", f"{dto}")
     state_wr("last_seen_date", f"{dto}")
-
+    g.can_load = False
     return ohlc
 
 def log2file(data,filename):
-    file1 = open(f"/home/jw/src/jmcap/ohlc/logs/{filename}","a")
+    file1 = open(f"logs/{filename}","a")
     file1.write(data+"\n")
     file1.close()
 
