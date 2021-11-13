@@ -82,9 +82,12 @@ o.state_wr("purch_qty", g.purch_qty)
 g.purch_qty_adj_pct = o.cvars.get("purch_qty_adj_pct")
 
 if o.cvars.get("datatype") == "live":
-    g.interval = 10000
+    g.interval = 300000
 else:
-    g.interval = 1000
+    if not o.cvars.get("offline"):
+        g.interval = 1000
+    else:
+        g.interval = 1
     # ! 1sec = 1000
     # ! 300000 = 5min
 
@@ -202,15 +205,18 @@ def working(k):
 
     # * if we are on a 5 minutes ticker, which is publiched exactlyon the 5 minute mark, we don't ned to load
     # * every 10 seconds.  We check teh epoch fro 5 minutes marks
-    epoch_time = int(time.time())
-    t5 = epoch_time % 300
-    if t5 < 20:   # * we are on a 10 second loop, which takes about 15 seconds, so anythign less that 20 - 25 seconds will not fire twice
-        g.can_load = True
+    # epoch_time = int(time.time())
+    # t5 = epoch_time % 300
+    # if t5 < 20:   # * we are on a 10 second loop, which takes about 15 seconds, so anythign less that 20 - 25 seconds will not fire twice
+    #     g.can_load = True
+    #
+    # if g.can_load or o.cvars.get("datatype") == "backtest":
+    #     # + print("Can load")
+    #     g.ohlc = o.get_ohlc(g.ticker_src, g.spot_src, since=t.since)
+    # ohlc = g.ohlc
 
-    if g.can_load:
-        # + print("Can load")
-        g.ohlc = o.get_ohlc(g.ticker_src, g.spot_src, since=t.since)
-    ohlc = g.ohlc
+
+    g.ohlc = o.get_ohlc(g.ticker_src, g.spot_src, since=t.since)
 
     # ! ───────────────────────────────────────────────────────────────────────────────────────
     # ! CHECK THE SIZE OF THE DATAFRAME and Gracefully exit on error or command
