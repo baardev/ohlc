@@ -216,7 +216,7 @@ def working(k):
     # ohlc = g.ohlc
 
 
-    g.ohlc = o.get_ohlc(g.ticker_src, g.spot_src, since=t.since)
+    ohlc = o.get_ohlc(g.ticker_src, g.spot_src, since=t.since)
 
     # ! ───────────────────────────────────────────────────────────────────────────────────────
     # ! CHECK THE SIZE OF THE DATAFRAME and Gracefully exit on error or command
