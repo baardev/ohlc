@@ -12,6 +12,7 @@ saved_versions/
 ship/
 sync/
 env/
+data/
 
 *.ORG
 *.zip
