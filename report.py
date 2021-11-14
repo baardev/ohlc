@@ -8,11 +8,11 @@ init()
 # g.dbc, g.cursor = o.getdbconn(host="108.161.133.254")
 g.dbc, g.cursor = o.getdbconn()
 
-cmd = f"select * from orders where session like 'winemake%'"
+cmd = f"select * from orders"
 rs = o.sqlex(cmd)
 g.cursor.close()  # ! JWFIX - open and close here?
 
-def get_running_bal():
+def get_running_bal(rs):
     c_id = 0
     c_uid = 1
     c_pair = 2
@@ -49,10 +49,10 @@ def get_running_bal():
             # print(Fore.GREEN + f"  Sold: {(aqty*aclose):6.4f}"+Fore.RESET)
             sells.append(v)
             profit = sum(sells) - sum(buys)
-            tot_profit = tot_profit + profit
+            # tot_profit = tot_profit + profit
             # print(Fore.YELLOW+f"PROFIT:------------------ {sum(sells)} - {sum(buys)} = {profit}"+Fore.RESET)
-            res = Fore.CYAN + f"[{i:04d}] {Fore.CYAN}{adate} {Fore.WHITE}{tot_profit:6.0f}" + Fore.RESET
+            res = Fore.CYAN + f"[{i:04d}] {Fore.CYAN}{adate} {Fore.MAGENTA}{profit:6.0f}" + Fore.RESET
         i += 1
     return res
 
-print(get_running_bal())
+print(get_running_bal(rs))

@@ -104,7 +104,7 @@ def update_db(tord, nsecs):
         argstr = f"{argstr},{vnp}"
 
     if cvars.get("mysql"):
-        g.dbc, g.cursor = getdbconn()
+        # g.dbc, g.cursor = getdbconn()
 
         cmd = f"insert into orders (uid) values ('{nsecs}')"
         sqlex(cmd)
@@ -113,7 +113,8 @@ def update_db(tord, nsecs):
         sqlex(cmd)
         g.logit.debug(cmd)
 
-        g.cursor.close()  # ! JWFIX - open and close here?
+        # g.cursor.close()  # ! JWFIX - open and close here?
+
     return
 
 
@@ -216,18 +217,16 @@ def orders(order, **kwargs):
             tord['record_time'] = get_datetime_str()
         except Exception as ex:
             handleEx(ex, f"len(ufn)={len(ufn)}")
-            g.logit.info(pcFROREM() + ufn + pcCLR(), extra={'mod_name': 'lib_olhc'})
-            exit()
+            g.logit.info(pcFROREM() + ufn + pcCLR())
 
     update_db(tord, nsecs)
-
     return
 
 def get_running_bal():
-    g.dbc, g.cursor = getdbconn()
-    cmd = f"select * from orders" # where session like 'winemake%'"
+    # g.dbc, g.cursor = getdbconn()
+    cmd = f"select * from orders where session = '{g.session_name}'"
     rs = sqlex(cmd)
-    g.cursor.close()  # ! JWFIX - open and close here?
+    # g.cursor.close()  # ! JWFIX - open and close here?
 
     c_id = 0
     c_uid = 1
@@ -258,15 +257,14 @@ def get_running_bal():
         adate = r[c_order_time]
         v =aqty*aclose
         if aside == "buy":
-            # print(Fore.RED + f"Bought: {(aqty*aclose):=6.4f}"+Fore.RESET)
+            # print(Fore.RED + f"Bought {aqty:3.2f} @ {aclose:6.4f} =  {(aqty*aclose):=6.4f}"+Fore.RESET)
             buys.append(v)
         if aside == "sell":
-            # print(Fore.GREEN + f"  Sold: {(aqty*aclose):6.4f}"+Fore.RESET)
+            # print(Fore.GREEN + f"  Sold {aqty:3.2f} @ {aclose:6.4f} = {(aqty*aclose):6.4f}"+Fore.RESET)
             sells.append(v)
             profit = sum(sells) - sum(buys)
-            tot_profit = tot_profit + profit
             # print(Fore.YELLOW+f"PROFIT:------------------ {sum(sells)} - {sum(buys)} = {profit}"+Fore.RESET)
-            res = Fore.CYAN + f"[{i:04d}] {Fore.CYAN}{adate} {Fore.YELLOW}${tot_profit:6.0f}" + Fore.RESET
+            res = Fore.CYAN + f"[{i:04d}] {Fore.CYAN}{adate} {Fore.YELLOW}${profit:6.4f}" + Fore.RESET
         i += 1
     return res
 
@@ -337,6 +335,13 @@ def get_a_word():
     g.wordlabel = words[i]
     return words[i].strip()
 
+def flag_file(**kwargs):
+    state = False
+    ff = "/tmp/flagfile"
+    if os.path.isfile(ff):
+        state = True
+        os.remove(ff)
+    return state
 
 def announce(**kwargs):
     if cvars.get("sounds"):
@@ -1811,15 +1816,16 @@ def backfill(collected_data, **kwargs):
 
 
 def sqlex(cmd):
-    # + g.logit.debug(f"SQL Command:{cmd}", extra={'mod_name': 'lib_olhc'})
-    # + g.logit.debug(f"SQL Command:{cmd}", extra={'mod_name': 'lib_olhc'})
+    g.logit.debug(f"SQL Command:{cmd}")
     try:
+        g.cursor.execute("SET AUTOCOMMIT = 1")
         g.cursor.execute(cmd)
+        g.dbc.commit()
         rs = g.cursor.fetchall()
     except Exception as ex:
         handleEx(ex, cmd)
         exit(1)
-    g.dbc.commit()
+
     return(rs)
 
 def calcfees(rs_ary):
@@ -2422,8 +2428,7 @@ def trigger_bb3avg(df, **kwargs):
                     # ! need to add current price and qty before doing the calc
                     # * these list counts are how we track the total number of purchases since last sell
                     state_ap('open_buys', BUY_PRICE)  # * adds to list of purchase prices since last sell
-                    state_ap('qty_holding',
-                             g.purch_qty)  # * adds to list of purchased quantities since last sell, respectfully
+                    state_ap('qty_holding', g.purch_qty)  # * adds to list of purchased quantities since last sell, respectfully
 
                     # * calc avg price using weighted averaging, price and cost are [list] sums
                     g.subtot_cost, g.subtot_qty, g.avg_price = wavg(state_r('qty_holding'), state_r('open_buys'))
@@ -2469,11 +2474,34 @@ def trigger_bb3avg(df, **kwargs):
                     order["order_type"] = "market"
                     # = order["stop_price"] = CLOSE * 1/cvars.get('closeXn')
                     # = order["upper_stop_price"] = CLOSE * 1
-                    order["uid"] = get_seconds_now()
+                    order["uid"] = g.gcounter #get_seconds_now() #! we can use g.gcounter as there is only 1 DB trans per loop
                     order["state"] = "submitted"
-                    order["record_time"] = f"{dfline['Date']}"
+                    order["order_time"] = f"{dfline['Date']}"
                     state_wr("order", order)
                     orders(order)
+
+                    #  calc total cost this run
+                    ql =  state_r('qty_holding')
+                    cl =  state_r('open_buys')
+
+                    sess_cost = 0
+
+                    for i in range(len(ql)): 
+                        sess_cost = sess_cost + (cl[i] * ql[i])
+
+                    newavg = (sum(cl)/sum(ql))/100
+
+
+                    a = f"{order['size']:6.4f}"
+                    b = f"{BUY_PRICE:6.4f}"
+                    c = f"{order['size'] * BUY_PRICE:6.4f}"
+                    d = f"{sess_cost:6.4f}"
+                    e = f"{g.avg_price:06.4f}/{newavg:06.4f}"
+                    
+
+
+                    print(Fore.RED + f"Hold {a} @ {b} == {c}   St {g.subtot_cost:06.4f}, Sq {g.subtot_qty:06.4f}, avg {g.avg_price:06.4f}"+Fore.RESET)
+
 
                     # * adjust the purchase quantity
                     # * reduce the decimals of the number
@@ -2580,8 +2608,8 @@ def trigger_bb3avg(df, **kwargs):
                     # = order["upper_stop_price"] = CLOSE * 1
                     order["pair"] = cvars.get("pair")
                     order["state"] = "submitted"
-                    order["record_time"] = f"{dfline['Date']}"
-                    order["uid"] = get_seconds_now()
+                    order["order_time"] = f"{dfline['Date']}"
+                    order["uid"] = g.gcounter #get_seconds_now() #! we can use g.gcounter as there is only 1 DB trans per loop
                     state_wr("order", order)
 
                     # ! sell all and clear the counters
@@ -2591,8 +2619,19 @@ def trigger_bb3avg(df, **kwargs):
                     g.avg_price = float("Nan")
 
                     orders(order)
+                    # waitfor(["submitting SELL"])
 
-                    # * now print a rinning tota;
+
+                    a = f"{order['size']:6.4f}"
+                    b = f"{SELL_PRICE:6.4f}"
+                    c = f"{order['size'] * SELL_PRICE:6.4f}"
+                    
+
+
+                    print(Fore.GREEN + f"Sold {a} @ {b} == {c}")
+
+
+                    # * now print a running total
                     print(get_running_bal())
 
                     announce(what="sell")

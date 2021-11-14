@@ -7,6 +7,17 @@ import lib_ohlc as o
 import getopt, sys, os
 import time
 import lib_globals as g
+import logging
+
+g.logit = logging
+g.logit.basicConfig(
+    filename="/home/jw/src/jmcap/ohlc/logs/ohlc.log",
+    filemode='a',
+    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+    datefmt='%H:%M:%S',
+    level=o.cvars.get('logging')
+)
+stdout_handler = g.logit.StreamHandler(sys.stdout)
 
 argv = sys.argv[1:]
 try:
@@ -14,7 +25,7 @@ try:
 except getopt.GetoptError as err:
     sys.exit(2)
 
-in_files = False
+in_files = "backdata*"
 out_file = "out"
 g.idx = 0
 # + begindate = '1970-01-01 00:00:00'
@@ -29,7 +40,7 @@ for opt, arg in opts:
         print("-o, --outfile  output file (alt name)")
         print("-i, --index  sequential number in series")
         print("-b, --begin  filter start date (def '1970-01-01 00:00:00'")
-        print("-e, --end    filter end  date (def '2970-01-01 00:00:00'")
+        print("-e, --end    filter end  date (def '2025-01-01 00:00:00'")
         sys.exit(0)
 
     if opt in ("-i", "--index"):

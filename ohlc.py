@@ -80,6 +80,7 @@ g.interval = o.cvars.get("interval")
 g.purch_qty = o.cvars.get("purch_qty")
 o.state_wr("purch_qty", g.purch_qty)
 g.purch_qty_adj_pct = o.cvars.get("purch_qty_adj_pct")
+g.dbc, g.cursor = o.getdbconn()
 
 if o.cvars.get("datatype") == "live":
     g.interval = 300000
@@ -211,10 +212,18 @@ def working(k):
     #     g.can_load = True
     #
     # if g.can_load or o.cvars.get("datatype") == "backtest":
-    #     # + print("Can load")
+    #     # print("Can load")
     #     g.ohlc = o.get_ohlc(g.ticker_src, g.spot_src, since=t.since)
     # ohlc = g.ohlc
 
+    # ! The above is one way to do this.  Below is another.. using cron to create a flag file
+
+    # if g.can_load or o.cvars.get("datatype") == "backtest":
+    #     if o.flag_file():
+    #         g.ohlc = o.get_ohlc(g.ticker_src, g.spot_src, since=t.since)
+    # ohlc = g.ohlc
+
+    # ! the other way is to just set teh interval to 300000 (5m)
 
     ohlc = o.get_ohlc(g.ticker_src, g.spot_src, since=t.since)
 

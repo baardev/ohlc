@@ -7,7 +7,17 @@ import lib_ohlc as o
 import getopt, sys, os
 import time
 import lib_globals as g
+import logging
 
+g.logit = logging
+g.logit.basicConfig(
+    filename="/home/jw/src/jmcap/ohlc/logs/ohlc.log",
+    filemode='a',
+    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+    datefmt='%H:%M:%S',
+    level=o.cvars.get('logging')
+)
+stdout_handler = g.logit.StreamHandler(sys.stdout)
 
 argv = sys.argv[1:]
 try:
@@ -37,8 +47,10 @@ for opt, arg in opts:
 # + o.cvars = Cvars(g.cfgfile)
 
 exch = 'binance' # + initial exchange
-t_frame = '5m' # + 1-day timeframe, usually from 1-minute to 1-week depending on the exchange
-symbols = ['ETH/BTC'] # + initial symbol
+# t_frame = '5m' # + 1-day timeframe, usually from 1-minute to 1-week depending on the exchange
+t_frame = o.cvars.get('timeframe')
+# symbols = ['ETH/BTC'] # + initial symbol
+symbols = [o.cvars.get('pair')]
 symbol = symbols[0] # + initial symbol
 exchange_list = ['binance']
 exch=exchange_list[0]
@@ -144,6 +156,13 @@ def grab(**kwargs):
 print("here1")
 sd0 = start_date
 sd1 = grab(start=sd0, t=t_frame, sym=symbol)
+
+print(sd1)
+
+file1 = open("_backtest.tmp", "w") 
+file1.write(f"{sd1}")
+file1.close()
+exit()
 
 cmd = f"./ohlc_backdata.py -d {sd1} -i {g.idx+1}"
 
