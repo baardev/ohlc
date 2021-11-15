@@ -30,7 +30,9 @@ curr_cost = float("Nan")
 current_run_count = 0
 purch_qty = False  # ! loaded in main from cvars  (min amount for CB = 0.01)
 purch_qty_adj_pct = False  # ! loaded in main from cvars
-purch_qty_adj_qty = False  # ! loaded in main from cvars
+# purch_qty_adj_qty = False  # ! loaded in main from cvars
+capital = 1
+purch_pct = 0.1
 
 pct_gain_list = []
 pnl_record_list = []
@@ -40,10 +42,11 @@ last_pct_gain = float("Nan")
 last_pnl_record = float("Nan")
 last_pct_record = float("Nan")
 
+pct_return = 0
+pct_cap_return = 0
 
 pnl_running = float("Nan")
 pct_running = float("Nan")
-
 
 sell_mark = float("Nan")
 idx = 0

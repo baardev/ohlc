@@ -27,7 +27,7 @@ import lib_globals as g
 import lib_listener as kb
 from pathlib import Path
 from colorama import init
-
+from colorama import Fore, Back, Style
 init()
 # + ≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
 argv = sys.argv[1:]
@@ -77,7 +77,16 @@ g.session_name = o.get_a_word()
 o.cvars.prev_md5 = o.cvars.this_md5
 g.datawindow = o.cvars.get("datawindow")
 g.interval = o.cvars.get("interval")
-g.purch_qty = o.cvars.get("purch_qty")
+
+
+# g.purch_qty = o.cvars.get("purch_qty")
+
+g.capital =  o.cvars.get("capital")
+g.purch_pct =  o.cvars.get("purch_pct")/100  
+
+g.purch_qty = g.capital * g.purch_pct
+
+
 o.state_wr("purch_qty", g.purch_qty)
 g.purch_qty_adj_pct = o.cvars.get("purch_qty_adj_pct")
 g.dbc, g.cursor = o.getdbconn()
@@ -136,6 +145,22 @@ else:
 
 o.state_wr("session_name", f"{g.cwd} : {g.session_name}")
 
+# + ! https://pynput.readthedocs.io/en/latest/keyboard.html
+print(Fore.MAGENTA + Style.BRIGHT)
+print("┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓")
+print(f"    INSTANCE: {g.instance_num} / {g.session_name}     ")
+print("┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫")
+print("┃ Alt + Arrow Down : Decrease interval ┃")
+print("┃ Alt + Arrow Up   : Increase interval ┃")
+print("┃ Alt + Arrow Left : Jump back 20 tcks ┃")
+print("┃ Alt + Arrow Right: Jump fwd 20 tcks  ┃")
+print("┃ Alt + End        : Shutdown          ┃")
+print("┃ Alt + Delete     : Pause (10s)/Resume┃")
+print("┃ Alt + Home       : Verbose/Quiet     ┃")
+print("┃ Alt + b          : Buy signal        ┃")
+print("┃ Alt + s          : Sell signal       ┃")
+print("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛")
+o.cclr()
 
 #   ───────────────────────────────────────────────────────────────────────────────────────
 #   Attempts to connect via the plot have failed
@@ -175,6 +200,10 @@ def working(k):
     #   num_axes = len(ax)
     g.prev_md5 = o.cvars.this_md5
     o.cvars = o.Cvars(g.cfgfile)
+
+    # g.purch_qty = g.capital * g.purch_pct
+
+
 
     if o.cvars.get("datatype") == "backtest":
         g.datasetname = o.cvars.get("backtestfile")
