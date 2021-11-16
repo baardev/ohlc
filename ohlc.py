@@ -170,6 +170,7 @@ print("┃ Alt + Home       : Verbose/Quiet     ┃")
 print("┃ Alt + b          : Buy signal        ┃")
 print("┃ Alt + s          : Sell signal       ┃")
 print("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛")
+print(f"Interval set at {g.interval}ms ({g.interval/1000}s)")
 o.cclr()
 
 #   ───────────────────────────────────────────────────────────────────────────────────────
