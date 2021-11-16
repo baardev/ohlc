@@ -319,7 +319,7 @@ def handleEx(ex, related):
 
 def clearstate():
     if not os.path.isfile("state_0.json"):
-        open(file, 'state_0.json').close()
+        open('state_0.json','w').close()
 
     state_wr('session_name', "noname")
     state_wr('ma_low_holding', False)
