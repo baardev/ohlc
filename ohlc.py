@@ -530,8 +530,8 @@ def working(k):
 
     # ! this is the ONLY way to get a non-blocking timer working
     # ! https://stackoverflow.com/questions/16732379/stop-start-pause-in-python-matplotlib-animation
-    plt.ion()
-    plt.gcf().canvas.start_event_loop(g.interval / 1000)
+    # plt.ion()
+    # plt.gcf().canvas.start_event_loop(g.interval / 1000)
 
     #* save every record transaction
     g.df_allrecords = g.df_allrecords.append(ohlc.tail(1),ignore_index=True)
