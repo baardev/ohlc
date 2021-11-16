@@ -77,13 +77,11 @@ def get_df():
             return False
 
     try:
-        # * read data from state file
-        coldat = state_r(colname)
+        coldat = state_r(colname)               # * read data from state file
         fromdate = state_r('from')              
         todate = state_r('to')
         df = pd.DataFrame(coldat,columns=[colname]) # * return the column data as a df
     except:
-
         print("Error 2")
         return False
     #     df = pd.read_json(input_filename, orient='split', compression='infer')
