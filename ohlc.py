@@ -178,7 +178,7 @@ if o.cvars.get('datatype') == "live":
     bt = o.cvars.get('load_on_boundary')
     if not g.epoch_boundry_ready:
         while o.is_epoch_boundry(bt) != 0:
-            print(f"{g.epoch_time} waiting for epoch boundry ({bt})")
+            print(f"{g.epoch_boundry_countdown} waiting for epoch boundry ({bt})")
             time.sleep(1)
         g.epoch_boundry_ready = True
         # * we found teh boundry, but now need to wait for teh data to get loaded and updated from the provider

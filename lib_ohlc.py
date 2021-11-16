@@ -132,8 +132,9 @@ def ffix(f):
     return cf
 
 def is_epoch_boundry(modby):
-    g.epoch_time = int(time.time())
-    return g.epoch_time % modby
+    epoch_time = int(time.time())
+    g.epoch_boundry_countdown  = epoch_time % modby
+    return g.epoch_boundry_countdown % modby
 
 
 def tosqlvar(v):
