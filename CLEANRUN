@@ -3,7 +3,7 @@ cd /home/jw/src/jmcap/ohlc
 
 rm _*
 
-cd logs && echo > ohlc.log 
+cd logs && echo "" > ohlc.log
 cd /home/jw/src/jmcap/ohlc
 cd records && rm *
 cd /home/jw/src/jmcap/ohlc
