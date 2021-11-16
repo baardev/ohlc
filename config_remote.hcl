@@ -26,6 +26,8 @@
         "apitype" :"sandbox"          ,
         "api_url" :"api-public.sandbox.pro.coinbase.com"
     }
+    ,"load_on_boundary": 300 # ! this MUST be the seconds of the data feed time, 5m = 300
+    ,"boundary_load_delay": 15 # 5 minute marker
     ,"maxbuys":10   #! mac buys allowed before sell
     ,"purch_qty":0.1
     ,"purch_qty_adj_pct":30

@@ -24,6 +24,7 @@ from subprocess import Popen
 from colorama import Fore, Back, Style  # ! https://pypi.org/project/colorama/
 import traceback
 from scipy import signal
+import time
 
 extra = {'mod_name': 'lib_olhc'}
 
@@ -130,6 +131,13 @@ def ffix(f):
     print(f"from/to: {df:10f} -> {cf:10f}")
     return cf
 
+def is_epoch_boundry(modby):
+    epoch_time = int(time.time())
+    t5 = epoch_time % modby
+    if t5==0:
+        return True
+    else:
+        return False
 
 def tosqlvar(v):
     if not v:
@@ -141,7 +149,7 @@ def tosqlvar(v):
 def exec_io(argstr, timeout=10):
     command = argstr.split()
     cp = Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-    rs = ""
+    rs = False
     try:
         output, errors = cp.communicate(timeout=timeout)
         rs = output.strip()
@@ -149,11 +157,11 @@ def exec_io(argstr, timeout=10):
         cp.kill()
         print("Timed out...")
 
-    if len(rs) < 20:
+    if not rs:
         g.logit.info(f"SENT: [{argstr}]")
         g.logit.info(f"RECIEVED: {rs}")
         g.logit.info(f"!!EMPTY RESPONSE!! Exiting:/")
-        exit(1)
+        return False
 
         # = rs = {
         # = "message": "missing response... continuing",
@@ -203,6 +211,8 @@ def orders(order, **kwargs):
         # - }
 
         ufn = exec_io(argstr)
+        if not ufn:
+            return False
 
         # - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 
@@ -227,7 +237,7 @@ def orders(order, **kwargs):
             g.logit.info(pcFROREM() + ufn + pcCLR())
 
     update_db(tord, nsecs)
-    return
+    return True
 
 def get_running_bal(**kwargs):
     version = 1
@@ -2414,7 +2424,10 @@ def process_buy(is_a_buy, **kwargs):
     order["order_time"] = f"{dfline['Date']}"
     state_wr("order", order)
 
-    orders(order)
+    rs = orders(order)
+    # * order failed
+    if not rs:
+        return float("Nan")
 
     #  calc total cost this run
     qty_holding_list =  state_r('qty_holding')
@@ -2554,8 +2567,10 @@ def process_sell(is_a_sell, **kwargs):
     order["uid"] = g.gcounter #get_seconds_now() #! we can use g.gcounter as there is only 1 DB trans per loop
     state_wr("order", order)
 
-    orders(order)
-
+    rs = orders(order)
+    # * order failed
+    if not rs:
+        return float("Nan")
     # * sell all (the default sell strategy) and clear the counters
     state_wr('open_buys', [])
     state_wr('qty_holding', [])

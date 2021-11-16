@@ -2,11 +2,14 @@
 import time
 
 
-while True:
+def is_epoch_boundry(modby):
     epoch_time = int(time.time())
-    t5 = epoch_time % 300
+    t5 = epoch_time % modby
     if t5==0:
-        print("---------------------------------------------------------")
-    print(epoch_time, t5)
+        return True
+    else:
+        return False
 
+while True:
+    print(is_boundry(300))
     time.sleep(1)

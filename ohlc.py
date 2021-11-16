@@ -173,6 +173,20 @@ print("┗━━━━━━━━━━━━━━━━━━━━━━━�
 print(f"Interval set at {g.interval}ms ({g.interval/1000}s)")
 o.cclr()
 
+# * ready to go, but launch only on boundry if live
+if o.cvars.get('datatype') == "live":
+    bt = o.cvars.get('load_on_boundary')
+    i = 0
+    if not g.epoch_boundry_ready:
+        while not o.is_epoch_boundry(bt):
+            print(f"{i} waiting for epoch boundry ({bt})")
+            i = i + 1
+            time.sleep(1)
+        g.epoch_boundry_ready = True
+        # * we found teh boundry, but now need to wait for teh data to get loaded and updated from the provider
+        time.sleep(o.cvars.get('boundary_load_delay'))
+
+
 #   ───────────────────────────────────────────────────────────────────────────────────────
 #   Attempts to connect via the plot have failed
 #   ───────────────────────────────────────────────────────────────────────────────────────
@@ -244,8 +258,8 @@ def working(k):
     # + get the source data as a dataframe
     # + ───────────────────────────────────────────────────────────────────────────────────────
 
-    # * if we are on a 5 minutes ticker, which is publiched exactlyon the 5 minute mark, we don't ned to load
-    # * every 10 seconds.  We check teh epoch fro 5 minutes marks
+    # * if we are on a 5 minutes ticker, which is published exactly on the 5 minute mark, we don't need to load
+    # * every 10 secondsm and we want to load as close to the publish time as possible.  We check the epoch for 5 minutes marks
     # epoch_time = int(time.time())
     # t5 = epoch_time % 300
     # if t5 < 20:   # * we are on a 10 second loop, which takes about 15 seconds, so anythign less that 20 - 25 seconds will not fire twice
@@ -264,6 +278,7 @@ def working(k):
     # ohlc = g.ohlc
 
     # ! the other way is to just set teh interval to 300000 (5m)
+
 
     ohlc = o.get_ohlc(g.ticker_src, g.spot_src, since=t.since)
 
