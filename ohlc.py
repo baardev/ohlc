@@ -86,6 +86,13 @@ if interval_pause:
 
 # g.purch_qty = o.cvars.get("purch_qty")
 
+# * Did we exit gracefully from the last time?
+if g.autoclear:
+    o.clearstate()
+else:
+    if o.waitfor(["Clear Last Data? (y/N)"]):
+        o.clearstate()
+
 g.capital =  o.cvars.get("capital")
 g.purch_pct =  o.cvars.get("purch_pct")/100  
 
@@ -144,12 +151,7 @@ multi = MultiCursor(fig.canvas, ax, color='r', lw=1, horizOn=True, vertOn=True)
 kb.keyboard_listener.start()
 if not os.path.isfile(g.statefile): Path(g.statefile).touch()
 
-# * Did we exit gracefully from the last time?
-if g.autoclear:
-    o.clearstate()
-else:
-    if o.waitfor(["Clear Last Data? (y/N)"]):
-        o.clearstate()
+
 
 o.state_wr("session_name", f"{g.cwd} : {g.session_name}")
 
