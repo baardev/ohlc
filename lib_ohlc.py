@@ -132,12 +132,9 @@ def ffix(f):
     return cf
 
 def is_epoch_boundry(modby):
-    epoch_time = int(time.time())
-    t5 = epoch_time % modby
-    if t5==0:
-        return True
-    else:
-        return False
+    g.epoch_time = int(time.time())
+    return g.epoch_time % modby
+
 
 def tosqlvar(v):
     if not v:

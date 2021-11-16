@@ -176,10 +176,9 @@ o.cclr()
 # * ready to go, but launch only on boundry if live
 if o.cvars.get('datatype') == "live":
     bt = o.cvars.get('load_on_boundary')
-    i = 0
     if not g.epoch_boundry_ready:
-        while not o.is_epoch_boundry(bt):
-            print(f"{i} waiting for epoch boundry ({bt})")
+        while o.is_epoch_boundry(bt) != 0:
+            print(f"{g.epoch_time} waiting for epoch boundry ({bt})")
             i = i + 1
             time.sleep(1)
         g.epoch_boundry_ready = True
