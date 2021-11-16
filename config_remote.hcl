@@ -331,8 +331,8 @@
           #! good pairs
 #  ,"testpair":["BUY_CltLowBbavg_ffmapLow","SELL_HgtHiBbavg_CoA"]
 #  ,"testpair":["BUY_CltLowBbavg_ffmapLow", "SELL_HgtHiBbavg_CoA_ffmapLow"]
-  ,"testpair":["BUY_CltLowBbavg_ffmapLow", "SELL_HgtHiBbavg_ffmapLow"]
-
+#  ,"testpair":["BUY_CltLowBbavg_ffmapLow", "SELL_HgtHiBbavg_ffmapLow"]
+  ,"testpair":["BUY_CltLowBbavg", "SELL_HgtHiBbavg_ffmapLowCoA"]
 
 #  ,"testpair":["BUY_CltLowBbavg","SELL_HgtHiBbavg_CoA"]
 #  ,"testpair":["BUY_CltMidBbavg","SELL_CgtPctlim"]
