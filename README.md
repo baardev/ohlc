@@ -100,7 +100,7 @@ x11vnc -display :1 -bg -nopw -listen localhost -xkb
 #view locally 
 ```
 vncviewer -geometry 1920x1280 localhost:5900
-vncviewer -encodings 'copyrect tight zrle hextile' localhost:5900 (args didn;t work for me)
+vncviewer -encodings 'copyrect tight zrle hextile' localhost:5900 (args didn't work for me)
 ```
 
 # To shutdown vncserver

@@ -16,6 +16,8 @@ import lib_panzoom as c
 import pandas as pd
 import json
 import getopt, sys, os
+import inspect
+
 fromdate = False
 todate = False
 
@@ -48,9 +50,11 @@ if not colname or not input_filename:
     print('''
     Missing colname or input_filename... examples
         ./liveview.py -f _ohlcdata.json -c Close &
-        ./liveview.py -f state.json -c pnl_record_list &
-        ./liveview.py -f state.json -c pct_record_list &
-        ./liveview.py -f state.json -c pct_gain_list &
+        ./liveview.py -f state_0.json -c pct_record_list &
+
+        ./liveview.py -f state_0.json -c running_tot &
+        ./liveview.py -f state_0.json -c pnl_record_list &
+        ./liveview.py -f state_0.json -c pct_gain_list &
     ''')
     exit(1)
 
@@ -64,21 +68,25 @@ def get_df():
     global fromdate
     global todate
     def state_r(n):
-        with open(input_filename) as json_file:
-            data = json.load(json_file)
-        try:
+        with open(input_filename) as json_file:  # * read teh state file...
+            data = json.load(json_file)         
+        try:                                     # * return the column in question
             return data[n]
-        except:
+        except: 
+            print("Error 1")
             return False
+
     try:
-        coldat = state_r(colname)
-        fromdate = state_r('from')
+        coldat = state_r(colname)               # * read data from state file
+        fromdate = state_r('from')              
         todate = state_r('to')
-        df = pd.DataFrame(coldat,columns=[colname])
+        df = pd.DataFrame(coldat,columns=[colname]) # * return the column data as a df
     except:
-        df = pd.read_json(input_filename, orient='split', compression='infer')
-        fromdate = f"{min(df['Timestamp'])}"
-        todate = f"{max(df['Timestamp'])}"
+        print("Error 2")
+        return False
+    #     df = pd.read_json(input_filename, orient='split', compression='infer')
+    #     fromdate = f"{min(df['Timestamp'])}"
+    #     todate = f"{max(df['Timestamp'])}"
 
     df['ID'] = range(len(df))
     df.set_index("ID")
@@ -88,22 +96,18 @@ def get_df():
 def animate(k):
     num_axes = len(ax)
     df = get_df()
-    deltadays = days_between(fromdate, todate)
+    if isinstance(df,pd.DataFrame):
+        deltadays = days_between(fromdate, todate)
 
-    for i in range(num_axes):
-        ax[i].clear()
-        ax[i].set_title(f'{input_filename} -> {colname}  {fromdate} - {todate} (DAYS: {deltadays})')
-        ax[i].grid(True, color='grey', alpha=0.3)
-        # + ax[i].axhline(y=0.0, color='black')
-    ax_patches = []
-    for i in range(num_axes):
-        ax_patches.append([])
-
-
-
-
-
-    plt.plot(df['ID'], df[colname])
+        for i in range(num_axes):
+            ax[i].clear()
+            ax[i].set_title(f'{input_filename} -> {colname}  {fromdate} - {todate} (DAYS: {deltadays})')
+            ax[i].grid(True, color='grey', alpha=0.3)
+            # + ax[i].axhline(y=0.0, color='black')
+        ax_patches = []
+        for i in range(num_axes):
+            ax_patches.append([])
+        plt.plot(df['ID'], df[colname])
 
 ani = animation.FuncAnimation(fig=fig, func=animate, frames=86400, interval=1000, blit = False, repeat=True)
 plt.show()

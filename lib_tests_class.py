@@ -246,10 +246,20 @@ class Tests:
         FLAG = FLAG and self.Cover3BBhigh  # + * HIGH is above all three BB high bands
         return FLAG
     # * ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+    def SELL_Cgt3HiBands(self):
+        FLAG = True
+        FLAG = FLAG and self.Cover3BBhigh  # + * HIGH is above all three BB high bands
+        return FLAG
+    # * ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
     def SELL_Hgt3HiBands_CoA(self):
         FLAG = True
         FLAG = FLAG and self.CoA
         FLAG = FLAG and self.Hover3BBhigh
+        return FLAG
+    # * ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+    def SELL_HgtHiBbavg(self):
+        FLAG = True
+        FLAG = FLAG and self.compare(price = self.HIGH, type='gt', against = self.BB3_UP_AVG)
         return FLAG
     # * ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
     def SELL_HgtHiBbavg_CoA(self):
@@ -276,6 +286,19 @@ class Tests:
         )
         return FLAG
     # * ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+    def SELL_HgtHiBbavg_ffmapLowCoA(self):
+        FLAG = True
+        FLAG = FLAG and (
+            self.compare(price = self.HIGH, type='gt', against = self.BB3_UP_AVG)
+            or
+            (
+                self.xunder(trigger=self.df['ffmap2'], against=self.FFMAPLLIM2)
+                and 
+                self.compare(price = self.CLOSE, type='gt', against = self.AVG_PRICE)
+            )
+        )
+        return FLAG
+    # * ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
     def SELL_CgtHiBbavg_CoA(self):
         FLAG = True
         FLAG = FLAG and self.CoA
@@ -283,6 +306,11 @@ class Tests:
         return FLAG
     # * ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
     def SELL_ffmapXUlow(self):
+        FLAG = True
+        FLAG = FLAG and self.xunder(trigger = self.df['ffmap2'], against=self.FFMAPLLIM2)
+        return FLAG
+    # * ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+    def SELL_ffmapXUlowCoA(self):
         FLAG = True
         FLAG = FLAG and self.xunder(trigger = self.df['ffmap2'], against=self.FFMAPLLIM2)
         return FLAG

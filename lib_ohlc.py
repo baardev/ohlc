@@ -97,7 +97,7 @@ def filter_order(order):
     return tord, argstr
 
 
-def update_db(tord, nsecs):
+def update_db(tord, uid):
     argstr = ""
     for key in tord:
         vnp = f"{key} = {tosqlvar(tord[key])}"
@@ -106,10 +106,10 @@ def update_db(tord, nsecs):
     if cvars.get("mysql"):
         # g.dbc, g.cursor = getdbconn()
 
-        cmd = f"insert into orders (uid) values ('{nsecs}')"
+        cmd = f"insert into orders (uid, session) values ('{uid}','{g.session_name}')"
         sqlex(cmd)
         g.logit.debug(cmd)
-        cmd = f"UPDATE orders SET {argstr[1:]} where uid='{nsecs}'".replace("'None'", "NULL")
+        cmd = f"UPDATE orders SET {argstr[1:]} where uid='{uid}' and session = '{g.session_name}'".replace("'None'", "NULL")
         sqlex(cmd)
         g.logit.debug(cmd)
 
@@ -229,51 +229,77 @@ def orders(order, **kwargs):
     update_db(tord, nsecs)
     return
 
-def get_running_bal():
-    # g.dbc, g.cursor = getdbconn()
-    cmd = f"select * from orders where session = '{g.session_name}'"
-    rs = sqlex(cmd)
-    # g.cursor.close()  # ! JWFIX - open and close here?
+def get_running_bal(**kwargs):
+    version = 1
+    ret = "all"
+    try:
+        version = kwargs['version']
+    except:
+        pass
+    try:
+        ret = kwargs['ret']
+    except:
+        pass
 
-    c_id = 0
-    c_uid = 1
-    c_pair = 2
-    c_fees = 3
-    c_price = 4
-    c_stop_price = 5
-    c_upper_stop_price = 6
-    c_size = 7
-    c_funds = 8
-    c_record_time = 9
-    c_order_time = 10
-    c_side = 11
-    c_type = 12
-    c_state = 13
-    c_session = 14
 
-    buys = []
-    sells = []
 
-    tot_profit = 0
-    i = 1
-    res = False
-    for r in rs:
-        aclose = r[c_price]
-        aside = r[c_side]
-        aqty = r[c_size]
-        adate = r[c_order_time]
-        v =aqty*aclose
-        if aside == "buy":
-            # print(Fore.RED + f"Bought {aqty:3.2f} @ {aclose:6.4f} =  {(aqty*aclose):=6.4f}"+Fore.RESET)
-            buys.append(v)
-        if aside == "sell":
-            # print(Fore.GREEN + f"  Sold {aqty:3.2f} @ {aclose:6.4f} = {(aqty*aclose):6.4f}"+Fore.RESET)
-            sells.append(v)
-            profit = sum(sells) - sum(buys)
-            # print(Fore.YELLOW+f"PROFIT:------------------ {sum(sells)} - {sum(buys)} = {profit}"+Fore.RESET)
-            res = Fore.CYAN + f"[{i:04d}] {Fore.CYAN}{adate} {Fore.YELLOW}${profit:6.4f}" + Fore.RESET
-        i += 1
-    return res
+
+    if version == 2:
+        cmd = f"select sum(price*size) from orders where side = 'buy' and session = '{g.session_name}'"
+        buyrs = list(sqlex(cmd, ret=ret))
+
+        cmd = f"select sum(price*size) from orders where side = 'sell' and session = '{g.session_name}'"
+        sellrs = list(sqlex(cmd, ret=ret))
+
+        profit = sellrs[0] - buyrs[0] 
+
+        return profit
+
+    if version == 1:
+        # g.dbc, g.cursor = getdbconn()
+        cmd = f"select * from orders where session = '{g.session_name}'"
+        rs = sqlex(cmd, ret=ret)
+        # g.cursor.close()  # ! JWFIX - open and close here?
+
+        c_id = 0
+        c_uid = 1
+        c_pair = 2
+        c_fees = 3
+        c_price = 4
+        c_stop_price = 5
+        c_upper_stop_price = 6
+        c_size = 7
+        c_funds = 8
+        c_record_time = 9
+        c_order_time = 10
+        c_side = 11
+        c_type = 12
+        c_state = 13
+        c_session = 14
+
+        buys = []
+        sells = []
+
+        tot_profit = 0
+        i = 1
+        res = False
+        for r in rs:
+            aclose = r[c_price]
+            aside = r[c_side]
+            aqty = r[c_size]
+            adate = r[c_order_time]
+            v =aqty*aclose
+            if aside == "buy":
+                # print(Fore.RED + f"Bought {aqty:3.2f} @ {aclose:6.4f} =  {(aqty*aclose):=6.4f}"+Fore.RESET)
+                buys.append(v)
+            if aside == "sell":
+                # print(Fore.GREEN + f"  Sold {aqty:3.2f} @ {aclose:6.4f} = {(aqty*aclose):6.4f}"+Fore.RESET)
+                sells.append(v)
+                profit = sum(sells) - sum(buys)
+                # print(Fore.YELLOW+f"PROFIT:------------------ {sum(sells)} - {sum(buys)} = {profit}"+Fore.RESET)
+                res = Fore.CYAN + f"[{i:04d}] {Fore.CYAN}{adate} {Fore.YELLOW}${profit:6.4f}" + Fore.RESET
+            i += 1
+        return res
 
 
 def handleEx(ex, related):
@@ -324,6 +350,7 @@ def clearstate():
     state_wr("pct_gain_list", [])
     state_wr("pct_record_list", [])
     state_wr("pnl_record_list", [])
+    state_wr("running_tot", [])
 
     state_wr("last_avg_price",float("Nan"))
 
@@ -1163,10 +1190,13 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
 
         if cvars.get("startdate"):
             # + * calculate new CURRENT time, not starting time of chart
-            old_start_time = df.iloc[0]['Timestamp']
-            new_start_time = df.iloc[0]['Timestamp'] + dt.timedelta(minutes=5 * g.datawindow)
-            print("old/new start time:", old_start_time, new_start_time)
-            date_mask = (df['Timestamp'] > new_start_time)
+            # old_start_time = df.iloc[0]['Timestamp']
+            # new_start_time = df.iloc[0]['Timestamp'] + dt.timedelta(minutes=5 * g.datawindow)
+            # print("old/new start time:", old_start_time, new_start_time)
+            # date_mask = (df['Timestamp'] > new_start_time)
+
+            # * apply date filer
+            date_mask = (df['Timestamp'] > cvars.get("startdate"))
             df = df.loc[date_mask]
 
         df["Date"] = pd.to_datetime(df['Timestamp'], unit='ms')
@@ -1184,6 +1214,7 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
         ohlc = cvars.load(fn)
         os.remove(fn)
         ohlc['ID'] = range(len(ohlc))
+
 
     # * data loaded
     # * check to see if the price has changed
@@ -1808,13 +1839,24 @@ def backfill(collected_data, **kwargs):
         i = i + 1
     return newary[::-1]
 
-def sqlex(cmd):
+def sqlex(cmd, **kwargs):
+    ret="all"
+    try:
+        ret=kwargs['ret']
+    except:
+        pass
+
     g.logit.debug(f"SQL Command:{cmd}")
+    rs=False
     try:
         g.cursor.execute("SET AUTOCOMMIT = 1")
         g.cursor.execute(cmd)
         g.dbc.commit()
-        rs = g.cursor.fetchall()
+        if ret == "all":
+            rs = g.cursor.fetchall()
+        if ret == "one":
+            rs = g.cursor.fetchone()
+            
     except Exception as ex:
         handleEx(ex, cmd)
         exit(1)
@@ -2258,8 +2300,306 @@ def pcFROREM():
 
 def pcERROR():
     return Fore.RED + Style.BRIGHT
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+
+def process_buy(is_a_buy, **kwargs):
+    ax = kwargs['ax']
+    CLOSE = kwargs['CLOSE']
+    df = kwargs['df']
+    dfline = kwargs['dfline']
+
+    def tots(dfline, **kwargs):
+        rs = float("Nan")
+        m = float("Nan")
+        # * if there is a BUY and not a SELL, add the subtot as a neg value
+        if not math.isnan(dfline['buy']) and math.isnan(dfline['sell']):
+            m = dfline['buy'] * -1 
+        # * if there is a SELL and not a BUY, add the subtot as a pos value
+        if not math.isnan(dfline['sell']) and math.isnan(dfline['buy']):
+            m = dfline['sell']
+
+        rs = m * dfline['qty']
+        return (rs)
+
+    BUY_PRICE = CLOSE
+    g.stoplimit_price  = BUY_PRICE * (1-cvars.get('stoplimit')) #/0.99
+
+    # * show on chart we have something to sell
+    ax.set_facecolor("#f7d5de")
+
+    # * first get latest conversion price
+    g.conversion = get_last_price(g.spot_src, quiet=True)
+
+    # * set cooldown by setting the next gcounter number that will freeup buys
+    # ! cooldown is calculated by adding the current g.gcounter counts and adding the g.cooldown
+    # ! value to arrive a the NEXT g.gcounter value that will allow buys.
+    # !g.cooldown holds the number of buys
+
+    g.cooldown = g.gcounter + cvars.get("cooldown")
+    # * we are in, so reset the buy signal for next run
+    g.external_buy_signal = False
+    # ! check there are funds?? JWFIX
+
+    # * calc new subtot and avg
+    # ! need to add current price and qty before doing the calc
+    # * these list counts are how we track the total number of purchases since last sell
+    state_ap('open_buys', BUY_PRICE)  # * adds to list of purchase prices since last sell
+    state_ap('qty_holding', g.purch_qty)  # * adds to list of purchased quantities since last sell, respectfully
+    # * calc avg price using weighted averaging, price and cost are [list] sums
+    g.subtot_cost, g.subtot_qty, g.avg_price = wavg(state_r('qty_holding'), state_r('open_buys'))
+    state_wr("last_avg_price",g.avg_price)
+
+    # * update the buysell records
+    g.df_buysell['subtot'] = g.df_buysell.apply(lambda x: tots(x), axis=1)  # * calc which col we are looking at and apply accordingly
+    # g.df_buysell['pct'].fillna(method='ffill', inplace=True)                # * create empty holder for pct and pnl
+    # g.df_buysell['pnl'].fillna(method='ffill', inplace=True)                
+    # g.df_buysell['pct'] = g.df_buysell.apply(lambda x: fillin(x, g.df_buysell), axis=1)
+
+    # * 'convienience' vars, 
+    bv = df['bb3avg_buy'].iloc[-1]          # * gets last buy
+    sv = df['bb3avg_sell'].iloc[-1]         # * gets last sell
+    tv = df['Timestamp'].iloc[-1]           # * gets last timestamp
+
+    # * insert latest data into df, and outside the routibe we shift busell down by 1, making room for next insert as loc 0 
+    g.df_buysell['buy'].iloc[0] = BUY_PRICE
+    g.df_buysell['qty'].iloc[0] = g.purch_qty
+    g.df_buysell['Timestamp'].iloc[0] = tv  # * add last timestamp tp buysell record
+
+    # * increment run counter and make sure the historical max is recorded
+    g.current_run_count = g.current_run_count + 1
+    state_wr("current_run_count", g.current_run_count)
+
+    # * track ongoing number of buys since last sell
+    g.curr_buys = g.curr_buys + 1
+
+    # * update buy count ans set permissions
+    g.buys_permitted = False if g.curr_buys >= cvars.get('maxbuys') else True
+
+    # * save useful data in state file
+    state_wr("last_buy_date", f"{tv}")
+    state_wr("curr_qty", g.subtot_qty)
+
+    if g.is_first_buy:
+        state_wr("first_buy_price", BUY_PRICE)
+        g.is_first_buy = False
+    state_wr("last_buy_price", BUY_PRICE)
+
+    # * create a new order
+    order = {}
+    order["pair"] = cvars.get("pair")
+    # = order["funds"] = False
+    order["side"] = "buy"
+    order["size"] = truncate(g.purch_qty, 5)
+    order["price"] = CLOSE
+    order["order_type"] = "market"
+    # = order["stop_price"] = CLOSE * 1/cvars.get('closeXn')
+    # = order["upper_stop_price"] = CLOSE * 1
+    order["uid"] = g.gcounter #get_seconds_now() #! we can use g.gcounter as there is only 1 DB trans per loop
+    order["state"] = "submitted"
+    order["order_time"] = f"{dfline['Date']}"
+    state_wr("order", order)
+
+    orders(order)
+
+    #  calc total cost this run
+    qty_holding_list =  state_r('qty_holding')
+    open_buys_list =  state_r('open_buys')
+
+    # * calc current total cost of session
+    sess_cost = 0
+    for i in range(len(qty_holding_list)): 
+        sess_cost = sess_cost + (open_buys_list[i] * qty_holding_list[i])
+
+    # * make pretty strings
+    s_size = f"{order['size']:6.4f}"
+    s_price = f"{BUY_PRICE:6.4f}"
+    s_cost = f"{order['size'] * BUY_PRICE:6.4f}"
+    # d = f"{sess_cost:6.4f}"
+    # e = f"{g.avg_price:06.4f}"
+
+    # * print to console    
+    print(f"[{g.gcounter:05d}]"+Fore.RED + f"Hold {s_size} @ ${s_price} == ${s_cost}"+Fore.RESET) #" St {g.subtot_cost:06.4f}, Sq {g.subtot_qty:06.4f}, avg {g.avg_price:06.4f}"+Fore.RESET)
+
+    # * adjust purch_qty according to rules, and make number compatible with CB api
+    g.purch_qty = g.purch_qty * (1 + (g.purch_qty_adj_pct / 100))
+    g.purch_qty = int(g.purch_qty * 1000) / 1000  # ! Smallest unit allowed (on CB) is 0.00000001
+
+    # * update state file
+    state_wr("purch_qty", g.purch_qty)
+    state_wr("open_buyscansell", True)
+
+    # * make a sound
+    announce(what="buy")
+    
+    return BUY_PRICE
+
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+#   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+
+def process_sell(is_a_sell, **kwargs):
+    ax = kwargs['ax']
+    CLOSE = kwargs['CLOSE']
+    df = kwargs['df']
+    dfline = kwargs['dfline']
 
 
+
+    SELL_PRICE = CLOSE
+
+
+
+    ax.set_facecolor("#ffffff")  # * make background white when nothing to sell
+
+    # * first get latest conversion price
+    g.conversion = get_last_price(g.spot_src)
+
+
+    g.cooldown = 0                  # * reset cooldown
+    g.buys_permitted = True         # * Allows buys again
+    g.external_sell_signal = False  # * turn off external sell signal
+
+    # * update buy counts
+    g.tot_buys = g.tot_buys + g.curr_buys
+    g.curr_buys = 0
+    state_wr("tot_buys", g.tot_buys)
+
+    # * calc new data.  g.subtot_qty is total holdings set in BUY routine
+    g.subtot_value = g.subtot_qty * SELL_PRICE  
+
+    # * calc pct gain/loss relative to invesment, NOT capital
+    g.last_pct_gain = ((g.subtot_value-g.subtot_cost)/g.subtot_cost)*100
+
+    # * calc and save new data
+    g.pnl_running = sum(state_r('pnl_record_list'))
+    g.pct_running = sum(state_r('pct_gain_list'))
+    state_ap("pct_gain_list", g.last_pct_gain)
+    state_ap("pnl_record_list", g.subtot_value - g.subtot_cost)
+    state_wr("pnl_running", g.pnl_running)
+    state_wr("pct_running", g.pct_running)
+
+    # * save current run count, incremented in BUY, then reset
+    state_ap("run_counts", g.current_run_count)
+    g.current_run_count = 0  # + * clear current count
+
+    # * recalx max_qty, comparing last to current, and saving max, then reset
+    this_qty = state_r("max_qty")
+    state_wr("max_qty", max(this_qty, g.subtot_qty))
+    state_wr("curr_qty", 0)
+
+    # * update buysell record
+    tv = df['Timestamp'].iloc[-1]
+
+    g.df_buysell['subtot'].iloc[0] = (g.subtot_cost)
+    g.df_buysell['qty'].iloc[0] = g.subtot_qty
+    g.df_buysell['pnl'].iloc[0] = g.pnl_running
+    g.df_buysell['pct'].iloc[0] = g.pct_running
+    g.df_buysell['sell'].iloc[0] = CLOSE
+    g.df_buysell['Timestamp'].iloc[0] = tv
+
+    # * record last sell time as 'to' field
+    state_wr("to", f"{tv}")
+
+    # * record pct gain/loss of this session
+    state_ap("pct_record_list", g.pct_running)
+
+    # * turn off 'can sell' flag, as we have nothing more to see now
+    state_wr("open_buyscansell", False)
+
+    #* record total number of sell and latest sell price
+    g.tot_sells = g.tot_sells + 1
+    state_wr("tot_sells", g.tot_sells)
+    state_wr("last_sell_price", SELL_PRICE)
+
+    # * create new order
+    order = {}
+    order["order_type"] = "sellall"
+    # = order["funds"] = False
+    order["side"] = "sell"
+    order["size"] = truncate(g.subtot_qty, 5)
+    order["price"] = SELL_PRICE
+    # = order["stop_price"] = CLOSE * 1 / cvars.get('closeXn')
+    # = order["upper_stop_price"] = CLOSE * 1
+    order["pair"] = cvars.get("pair")
+    order["state"] = "submitted"
+    order["order_time"] = f"{dfline['Date']}"
+    order["uid"] = g.gcounter #get_seconds_now() #! we can use g.gcounter as there is only 1 DB trans per loop
+    state_wr("order", order)
+
+    orders(order)
+
+    # * sell all (the default sell strategy) and clear the counters
+    state_wr('open_buys', [])
+    state_wr('qty_holding', [])
+
+    # * reset average price
+    g.avg_price = float("Nan")
+
+    # * cals final cost and sale of session
+    purchase_price = g.subtot_cost             
+    sold_price = g.subtot_qty * SELL_PRICE     
+
+    # * pct of return relatve to holding
+    g.pct_return = ((sold_price - purchase_price)/purchase_price) # ! x 100 for actual pct value
+
+    # * pct relative to capital, whuch SHOULD be (current price * 'capital')
+    g.pct_cap_return = (sold_price - purchase_price)/(SELL_PRICE * cvars.get('capital'))
+
+    s_size = f"{order['size']:6.4f}"
+    s_price = f"{SELL_PRICE:6.4f}"
+    s_tot = f"{g.subtot_qty * SELL_PRICE:6.4f}"
+
+    # * uodate DB with pct
+    cmd = f"UPDATE orders set pct = {g.pct_return}, cap_pct = {g.pct_cap_return} where uid = '{g.gcounter }' and session = '{g.session_name}'"
+    sqlex(cmd)
+
+    # * print to console
+    print(f"[{g.gcounter:05d}]"+Fore.GREEN + f"Sold {s_size} @ ${s_price} == ${s_tot}   PnL: ${(g.subtot_qty * SELL_PRICE) - g.subtot_cost:06.4f}  {g.pct_return * 100:06.4f}% / {g.pct_cap_return * 100:06.4f}%"+Fore.RESET)  
+    g.capital = g.capital + (g.capital * g.pct_cap_return)
+
+    # * calc and print a running total
+    rp = get_running_bal(version=2, ret='one')
+    s_rp = f"{rp:6.2f}"
+    state_ap("running_tot",rp)
+
+    print(Back.YELLOW+Fore.BLACK+f"[{dfline['Date']}] "+f"NEW CAPITAL AMT: {g.capital}"+Back.RESET+Fore.RESET+Fore.YELLOW+f"\t${s_rp}"+Fore.RESET)
+
+    # * update available capital according to last gains/loss
+    g.purch_qty = g.capital * g.purch_pct
+
+    announce(what="sell") # * make a noise
+
+    return SELL_PRICE
+
+    
 # + -------------------------------------------------------------
 # +  TRIGGERS
 # + -------------------------------------------------------------
@@ -2267,33 +2607,6 @@ def pcERROR():
 def trigger_bb3avg(df, **kwargs):
     ax = kwargs['ax']
     cols = df['ID'].max()
-
-    def tots(dfline, **kwargs):
-        rs = float("Nan")
-        m = float("Nan")
-        # + !if there is a BUY and not a SELL, add the subtot as a neg value
-        if not math.isnan(dfline['buy']) and math.isnan(dfline['sell']):
-            m = dfline['buy'] * -1
-        # + ! if there is a SELL and not a BUY, add the subtot as a pos value
-        if not math.isnan(dfline['sell']) and math.isnan(dfline['buy']):
-            m = dfline['sell']
-        rs = m * dfline['qty']
-        return (rs)
-
-    def fillin(dfline, df, **kwargs):
-
-        last_pct = float("Nan")
-        # + waitfor()
-        rs = float("Nan")
-        if math.isnan(dfline['pct']):  # + ! in pct is empty
-            if math.isnan(last_pct):  # + ! look to g.previous
-                rs = float("Nan")  # + ! is also empty, set to o
-            else:  # + ! if g.previous exists
-                rs = last_pct  # + ! set to that
-        else:  # + ! if pct not empty
-            rs = dfline['pct']  # + ! use that
-            last_pct = rs
-        return rs
 
     def tfunc(dfline, **kwargs):
         action = kwargs['action']
@@ -2321,104 +2634,8 @@ def trigger_bb3avg(df, **kwargs):
                     and g.buys_permitted  # * we haven't reached the maxbuy limit yet
 
                 # * BUY is approved, so check that we are not runnng hot
-                # ! cooldown is calculated by adding the current g.gcounter counts and adding the g.cooldown
-                # ! value to arrive a the NEXT g.gcounter value that will allow buys.
-                # !g.cooldown holds the number of buys
-
-
                 if is_a_buy and (g.gcounter >= g.cooldown):
-                    # * first get latest conversion price
-                    g.conversion = get_last_price(g.spot_src, quiet=True)
-
-                    # * set cooldown by setting the next gcounter number that will freeup buys
-                    g.cooldown = g.gcounter + cvars.get("cooldown")
-                    # * we are in, so reset the buy signal for next run
-                    g.external_buy_signal = False
-                    # ! check there are funds?? JWFIX
-
-                    BUY_PRICE = CLOSE
-
-                    # * calc new subtot and avg
-                    # ! need to add current price and qty before doing the calc
-                    # * these list counts are how we track the total number of purchases since last sell
-                    state_ap('open_buys', BUY_PRICE)  # * adds to list of purchase prices since last sell
-                    state_ap('qty_holding', g.purch_qty)  # * adds to list of purchased quantities since last sell, respectfully
-
-                    # * calc avg price using weighted averaging, price and cost are [list] sums
-                    g.subtot_cost, g.subtot_qty, g.avg_price = wavg(state_r('qty_holding'), state_r('open_buys'))
-
-                    state_wr("last_avg_price",g.avg_price)
-                    ax.set_facecolor("#f7d5de")
-
-                    # * update the buysell records
-                    g.df_buysell['subtot'] = g.df_buysell.apply(lambda x: tots(x), axis=1)
-                    g.df_buysell['pct'].fillna(method='ffill', inplace=True)
-                    g.df_buysell['pnl'].fillna(method='ffill', inplace=True)
-                    g.df_buysell['pct'] = g.df_buysell.apply(lambda x: fillin(x, g.df_buysell), axis=1)
-                    g.df_buysell['buy'].iloc[0] = BUY_PRICE
-                    g.df_buysell['qty'].iloc[0] = g.purch_qty
-                    bv = df['bb3avg_buy'].iloc[-1]  # + * gets last buy
-                    sv = df['bb3avg_sell'].iloc[-1]  # + * gets last sell
-                    tv = df['Timestamp'].iloc[-1]  # + * gets last timestamp
-                    g.df_buysell['Timestamp'].iloc[0] = tv  # + * add last timestamp tp buysell record
-
-                    # * increment run counter and make sure the historical max is recorded
-                    g.current_run_count = g.current_run_count + 1
-                    state_wr("current_run_count", g.current_run_count)
-
-                    # * track ongoing number of buys since last sell
-                    g.curr_buys = g.curr_buys + 1
-
-                    g.buys_permitted = False if g.curr_buys >= cvars.get('maxbuys') else True
-
-                    state_wr("last_buy_date", f"{tv}")
-                    state_wr("curr_qty", g.subtot_qty)
-
-                    if g.is_first_buy:
-                        state_wr("first_buy_price", BUY_PRICE)
-                        g.is_first_buy = False
-                    state_wr("last_buy_price", BUY_PRICE)
-
-                    order = {}
-                    order["pair"] = cvars.get("pair")
-                    # = order["funds"] = False
-                    order["side"] = "buy"
-                    order["size"] = truncate(g.purch_qty, 5)
-                    order["price"] = CLOSE
-                    order["order_type"] = "market"
-                    # = order["stop_price"] = CLOSE * 1/cvars.get('closeXn')
-                    # = order["upper_stop_price"] = CLOSE * 1
-                    order["uid"] = g.gcounter #get_seconds_now() #! we can use g.gcounter as there is only 1 DB trans per loop
-                    order["state"] = "submitted"
-                    order["order_time"] = f"{dfline['Date']}"
-                    state_wr("order", order)
-                    orders(order)
-
-                    #  calc total cost this run
-                    ql =  state_r('qty_holding')
-                    cl =  state_r('open_buys')
-
-                    sess_cost = 0
-
-                    for i in range(len(ql)): 
-                        sess_cost = sess_cost + (cl[i] * ql[i])
-
-                    s_size = f"{order['size']:6.4f}"
-                    s_price = f"{BUY_PRICE:6.4f}"
-                    s_cost = f"{order['size'] * BUY_PRICE:6.4f}"
-                    # d = f"{sess_cost:6.4f}"
-                    # e = f"{g.avg_price:06.4f}/{newavg:06.4f}"
-                    
-                    print(Fore.RED + f"Hold {s_size} @ ${s_price} == ${s_cost}") #" St {g.subtot_cost:06.4f}, Sq {g.subtot_qty:06.4f}, avg {g.avg_price:06.4f}"+Fore.RESET)
-
-                    g.purch_qty = g.purch_qty * (1 + (g.purch_qty_adj_pct / 100))
-                    g.purch_qty = int(g.purch_qty * 1000) / 1000  # ! Smallest unit allowed (on CB) is 0.00000001
-
-                    # * there's something to sell now
-                    state_wr("purch_qty", g.purch_qty)
-                    state_wr("open_buyscansell", True)
-
-                    announce(what="buy")
+                    BUY_PRICE = process_buy(is_a_buy, ax=ax, CLOSE=CLOSE, df=df, dfline=dfline)
                 else:
                     BUY_PRICE = float("Nan")
             else:
@@ -2430,125 +2647,34 @@ def trigger_bb3avg(df, **kwargs):
         # + -------------------------------------------------------------------
         if action == "sell":
             sell = None
-            if g.idx == cols and state_r("open_buyscansell"):
+            SELL_PRICE=False
+            # * first we check is we need to apply stop-limit rules
+            limitsell = False
+            # if CLOSE < g.stoplimit_price:  
+            #     print(f"STOP LIMIT OF {g.stoplimit_price}!")
+            #     limitsell = True
 
+            if g.idx == cols and state_r("open_buyscansell"):
                 # * dump if we are maxed-out of buys
-                if g.curr_buys >= cvars.get("maxbuys"):
-                    if CLOSE > g.avg_price and cvars.get("bail_option_1"):
-                        g.external_sell_signal = True
+                # if g.curr_buys >= cvars.get("maxbuys"): #! do I need this?
+                # if (CLOSE > g.avg_price and cvars.get("bail_option_1") or (limitsell):  #! JWFIX no longer usegn bailoptipons? 
+                if limitsell:
+                    g.external_sell_signal = True
 
                 tc = Tests(cvars, dfline, df, idx=g.idx)
                 is_a_sell = tc.selltest(cvars.get('testpair')[1]) or g.external_sell_signal
-                if is_a_sell:
-                    # * first get latest conversion price
-                    g.conversion = get_last_price(g.spot_src)
 
-                    g.cooldown = 0  # * reset cooldown
-                    g.buys_permitted = True  # * Allows buys again
-                    g.external_sell_signal = False  # * turn off external sell signal
-
-                    # * update buy counts
-                    g.tot_buys = g.tot_buys + g.curr_buys
-                    g.curr_buys = 0
-                    state_wr("tot_buys", g.tot_buys)
-
-                    SELL_PRICE = CLOSE
-
-                    ax.set_facecolor("#ffffff")  # * make background pink when in BUY mode
-                    # * calc new data
-                    g.subtot_value = g.subtot_qty * SELL_PRICE  # * g.subtot_qty was set in the BUY routine
-
-                    try:
-                        g.last_pct_gain = ((g.subtot_value-g.subtot_cost)/g.subtot_cost)*100
-                    except Exception as ex:
-                        g.pct_gain_list = 0
-
-                    # ! save new data
-                    state_ap("pct_gain_list", g.last_pct_gain)
-                    state_ap("pnl_record_list", g.subtot_value - g.subtot_cost)
-                    g.pnl_running = sum(state_r('pnl_record_list'))
-                    state_wr("pnl_running", g.pnl_running)
-                    g.pct_running = sum(state_r('pct_gain_list'))
-                    state_wr("pct_running", g.pct_running)
-
-                    state_ap("run_counts", g.current_run_count)
-                    g.current_run_count = 0  # + * clear current count
-
-                    this_qty = state_r("max_qty")
-                    state_wr("max_qty", max(this_qty, g.subtot_qty))
-                    state_wr("curr_qty", 0)
-
-                    g.df_buysell['subtot'].iloc[0] = (g.subtot_cost)
-                    g.df_buysell['qty'].iloc[0] = g.subtot_qty
-                    g.df_buysell['pnl'].iloc[0] = g.pnl_running
-                    g.df_buysell['pct'].iloc[0] = g.pct_running
-                    g.df_buysell['sell'].iloc[0] = CLOSE
-                    tv = df['Timestamp'].iloc[-1]
-                    g.df_buysell['Timestamp'].iloc[0] = tv
-                    state_wr("to", f"{tv}")
-                    state_ap("pct_record_list", g.pct_running)
-                    state_wr("open_buyscansell", False)
-                    g.tot_sells = g.tot_sells + 1
-                    state_wr("tot_sells", g.tot_sells)
-                    state_wr("last_sell_price", SELL_PRICE)
-
-                    # + g.subtot_cost = sum(state_r('open_buys'))
-                    # + g.subtot_qty = sum(state_r('qty_holding'))
-                    g.subtot_cost, g.subtot_qty, g.avg_price = wavg(state_r('qty_holding'), state_r('open_buys'))
-
-                    order = {}
-                    order["order_type"] = "sellall"
-                    # = order["funds"] = False
-                    order["side"] = "sell"
-                    order["size"] = truncate(g.subtot_qty, 5)
-                    order["price"] = CLOSE
-                    # = order["stop_price"] = CLOSE * 1 / cvars.get('closeXn')
-                    # = order["upper_stop_price"] = CLOSE * 1
-                    order["pair"] = cvars.get("pair")
-                    order["state"] = "submitted"
-                    order["order_time"] = f"{dfline['Date']}"
-                    order["uid"] = g.gcounter #get_seconds_now() #! we can use g.gcounter as there is only 1 DB trans per loop
-                    state_wr("order", order)
-
-                    # ! sell all and clear the counters
-                    state_wr('open_buys', [])
-                    state_wr('qty_holding', [])
-
-                    g.avg_price = float("Nan")
-
-                    purchase_price = g.subtot_cost                 # * total cost of this session
-                    sold_price = order['size'] * SELL_PRICE    # * return from this session
-
-                    # ! % of retuem relatve to holding
-                    g.pct_return = ((sold_price - purchase_price)/purchase_price) * 1
-
-                    #  ! % relative to capital 
-                    g.pct_cap_return = (sold_price - purchase_price)/SELL_PRICE
-
-                    a = f"{order['size']:6.4f}"
-                    b = f"{SELL_PRICE:6.4f}"
-                    c = f"{order['size'] * SELL_PRICE:6.4f}"
-
-                    orders(order)
-
-                    # * uodate db with pct
-                    cmd = f"UPDATE orders set pct = {g.pct_return}, cap_pct = {g.pct_cap_return} where uid = '{g.gcounter }'"
-                    sqlex(cmd)
-
-                    print(Fore.GREEN + f"Sold {a} @ ${b} == ${c}") #   cost: ${g.subtot_cost:06.4f}  {g.pct_return * 100:06.4f}% / {g.pct_cap_return * 100:06.4f}%")  
-                    g.capital = g.capital + (g.capital * g.pct_cap_return)
-                    print(Fore.MAGENTA+f"NEW CAPITAL AMT: {g.capital} \t {get_running_bal()}")
-
-                    # * now print a running total
-                    g.purch_qty = g.capital * g.purch_pct
-
-                    announce(what="sell")
+                if is_a_sell:                  
+                    if limitsell:
+                        SELL_PRICE = process_sell(is_a_sell, ax=ax, CLOSE=g.stoplimit_price, df=df, dfline=dfline)
+                        g.stoplimit_price = 1e-10
+                    else:
+                        SELL_PRICE = process_sell(is_a_sell, ax=ax, CLOSE=CLOSE, df=df, dfline=dfline)
                 else:
                     SELL_PRICE = float("Nan")
             else:
                 SELL_PRICE = float("Nan")
             return SELL_PRICE
-
         return float("Nan")
 
     if len(df) != len(g.df_buysell.index):
