@@ -2,6 +2,9 @@
 # + matplotlib.use("Qt5agg")
 # + matplotlib.use('Tkagg')
 import matplotlib
+
+import lib_ohlc
+
 matplotlib.use('Tkagg')
 import lib_globals as g
 import datetime as dt
@@ -9,7 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.widgets import MultiCursor
 # + import mplfinance as mpf
-# + import lib_ohlc as o
+import lib_ohlc as o
 # + from lib_cvars import Cvars
 # + from lib_cvars import Gvars
 import lib_panzoom as c
@@ -72,17 +75,18 @@ def get_df():
             data = json.load(json_file)         
         try:                                     # * return the column in question
             return data[n]
-        except: 
-            print("Error 1")
+        except Exception as e:
+            print(f"[1]Error:{e}...` continuing")
             return False
 
     try:
-        coldat = state_r(colname)               # * read data from state file
+        # * read data from state file
+        coldat = state_r(colname)
         fromdate = state_r('from')              
         todate = state_r('to')
         df = pd.DataFrame(coldat,columns=[colname]) # * return the column data as a df
-    except:
-        print("Error 2")
+    except Exception as e:
+        print(f"[2]Error:{e}... continuing")
         return False
     #     df = pd.read_json(input_filename, orient='split', compression='infer')
     #     fromdate = f"{min(df['Timestamp'])}"

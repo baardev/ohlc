@@ -31,8 +31,9 @@ from colorama import Fore, Back, Style
 init()
 # + ≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
 argv = sys.argv[1:]
+interval_pause = False
 try:
-    opts, args = getopt.getopt(argv, "-hi:bc", ["help", "instance", "batch", "clear"])
+    opts, args = getopt.getopt(argv, "-hi:bcp:", ["help", "instance", "batch", "clear", "pause="])
 except getopt.GetoptError as err:
     sys.exit(2)
 
@@ -41,6 +42,7 @@ for opt, arg in opts:
         print("-i, --instance   instance number")
         print("-b, --batch  batchmode")
         print("-c, --clear  auto clear")
+        print("-p, --pause  interval pause")
         sys.exit(0)
 
     if opt in ("-i", "--instance number"):
@@ -51,6 +53,8 @@ for opt, arg in opts:
         g.batchmode = True
     if opt in ("-c", "--clear"):
         g.autoclear = True
+    if opt in ("-p", "--pause"):
+        interval_pause = int(arg)
 # + ≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
 
 g.time_start = time.time()
@@ -77,7 +81,8 @@ g.session_name = o.get_a_word()
 o.cvars.prev_md5 = o.cvars.this_md5
 g.datawindow = o.cvars.get("datawindow")
 g.interval = o.cvars.get("interval")
-
+if interval_pause:
+    g.interval = interval_pause
 
 # g.purch_qty = o.cvars.get("purch_qty")
 
@@ -100,6 +105,9 @@ else:
         g.interval = 1
     # ! 1sec = 1000
     # ! 300000 = 5min
+
+if interval_pause:
+    g.interval = interval_pause
 
 # * create the global buy/sell and all_records dataframes
 g.df_allrecords = pd.DataFrame()

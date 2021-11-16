@@ -5,30 +5,25 @@
         5,
         5
     ],
-    "max_qty": 1.75,
+    "max_qty": 0,
     "curr_qty": 0,
     "pctbb3Tcansell": false,
-    "last_seen_date": "2021-02-07 00:40:00",
-    "delta_days": "22:40:00",
+    "last_seen_date": "2021-02-05 23:40:00",
+    "delta_days": "0",
     "last_buy_date": "2021-02-06 21:05:00",
-    "pnl_running": -77.65962331169567,
-    "pct_running": -1.116784277104862,
-    "tot_buys": 16,
-    "tot_sells": 4,
+    "pnl_running": NaN,
+    "pct_running": NaN,
+    "tot_buys": 0,
+    "tot_sells": 0,
     "last_run_count": 0,
-    "current_run_count": 2,
+    "current_run_count": 0,
     "largest_run_count": 0,
     "from": "2021-02-05 22:55:00",
-    "to": "2021-02-06 21:35:00",
+    "to": false,
     "bb3Tcanbuy": true,
     "bb3Tcansell": false,
-    "purch_qty": 0.163,
-    "run_counts": [
-        7,
-        3,
-        4,
-        2
-    ],
+    "purch_qty": false,
+    "run_counts": [],
     "bb3T": [],
     "bb3Q": [],
     "order": {
@@ -41,40 +36,20 @@
         "order_time": "2021-02-06 21:35:00",
         "uid": 273
     },
-    "first_buy_price": 2872.832,
-    "last_buy_price": 2702.464,
+    "first_buy_price": 0,
+    "last_buy_price": 0,
     "last_sell_price": 2726.848,
     "lasy_buy_price": 4217.5199999999995,
-    "session_name": "ohlc : monaural",
+    "session_name": "ohlc : breathy",
     "open_buyscanbuy": true,
     "open_buyscansell": false,
     "open_buys": [],
     "qty_holding": [],
-    "pct_gain_list": [
-        -1.7587846417582689,
-        0.37749995314500584,
-        0.2645004115084011,
-        0.8742052911949804
-    ],
-    "pct_record_list": [
-        0,
-        -1.7587846417582689,
-        -1.381284688613263,
-        -1.116784277104862
-    ],
-    "pnl_record_list": [
-        -85.71219199999996,
-        3.883390202334567,
-        4.169178485969724,
-        5.273632906438252
-    ],
-    "last_avg_price": 2703.216339725671,
+    "pct_gain_list": [],
+    "pct_record_list": [],
+    "pnl_record_list": [],
+    "last_avg_price": NaN,
     "ma_low_holding": false,
     "ma_low_sellat": 10000000000.0,
-    "running_tot": [
-        -85.68409800000063,
-        -81.80057800000031,
-        -77.63134300000002,
-        -72.3579550000004
-    ]
+    "running_tot": []
 }

@@ -1,0 +1,27 @@
+rt_id: 0
+Dataset: long.json
+Delta Days: 139 days, 2:15:00
+Algos: BUY_CltLowBbavg_ffmapLow / SELL_HgtHiBbavg_ffmapLow
+Total buys: 4559
+Total sells: 1897
+Max Cont. Buys: 10
+cooldown: 2
+lowpctline: 15
+bblength: [12, 17, 23]
+bbstd: [2.1, 2.0, 1.9]
+Total % increase: 434.04371654092125
+$ Total Profit: 1009.3984931278163
+Data window: 28
+maxbuys allowed: 10
+Total % HODL: 162.08387375702546
+Final %: 271.9598427838958
+Run Name: TEST3/zinnia
+Pair: ETH/BTC
+purch_qty_adj_pct: 30
+Config ID: configs/0_786b19958d4c4ee4b7b7064ef3b530f9.hcl
+Date: 2021-11-16 11:14:47
+Timeframe: 5m
+Instance: 0
+datalength: 39999
+runtime (m): 564.8
+Message: OK

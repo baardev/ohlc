@@ -1190,10 +1190,13 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
 
         if cvars.get("startdate"):
             # + * calculate new CURRENT time, not starting time of chart
-            old_start_time = df.iloc[0]['Timestamp']
-            new_start_time = df.iloc[0]['Timestamp'] + dt.timedelta(minutes=5 * g.datawindow)
-            print("old/new start time:", old_start_time, new_start_time)
-            date_mask = (df['Timestamp'] > new_start_time)
+            # old_start_time = df.iloc[0]['Timestamp']
+            # new_start_time = df.iloc[0]['Timestamp'] + dt.timedelta(minutes=5 * g.datawindow)
+            # print("old/new start time:", old_start_time, new_start_time)
+            # date_mask = (df['Timestamp'] > new_start_time)
+
+            # * apply date filer
+            date_mask = (df['Timestamp'] > cvars.get("startdate"))
             df = df.loc[date_mask]
 
         df["Date"] = pd.to_datetime(df['Timestamp'], unit='ms')
@@ -1211,6 +1214,7 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
         ohlc = cvars.load(fn)
         os.remove(fn)
         ohlc['ID'] = range(len(ohlc))
+
 
     # * data loaded
     # * check to see if the price has changed
@@ -2333,6 +2337,7 @@ def process_buy(is_a_buy, **kwargs):
         return (rs)
 
     BUY_PRICE = CLOSE
+    g.stoplimit_price  = BUY_PRICE * (1-cvars.get('stoplimit')) #/0.99
 
     # * show on chart we have something to sell
     ax.set_facecolor("#f7d5de")
@@ -2466,7 +2471,12 @@ def process_sell(is_a_sell, **kwargs):
     df = kwargs['df']
     dfline = kwargs['dfline']
 
+
+
     SELL_PRICE = CLOSE
+
+
+
     ax.set_facecolor("#ffffff")  # * make background white when nothing to sell
 
     # * first get latest conversion price
@@ -2637,17 +2647,29 @@ def trigger_bb3avg(df, **kwargs):
         # + -------------------------------------------------------------------
         if action == "sell":
             sell = None
+            SELL_PRICE=False
+            # * first we check is we need to apply stop-limit rules
+            limitsell = False
+            # if CLOSE < g.stoplimit_price:  
+            #     print(f"STOP LIMIT OF {g.stoplimit_price}!")
+            #     limitsell = True
+
             if g.idx == cols and state_r("open_buyscansell"):
                 # * dump if we are maxed-out of buys
-                if g.curr_buys >= cvars.get("maxbuys"):
-                    if CLOSE > g.avg_price and cvars.get("bail_option_1"):
-                        g.external_sell_signal = True
+                # if g.curr_buys >= cvars.get("maxbuys"): #! do I need this?
+                # if (CLOSE > g.avg_price and cvars.get("bail_option_1") or (limitsell):  #! JWFIX no longer usegn bailoptipons? 
+                if limitsell:
+                    g.external_sell_signal = True
 
                 tc = Tests(cvars, dfline, df, idx=g.idx)
                 is_a_sell = tc.selltest(cvars.get('testpair')[1]) or g.external_sell_signal
 
-                if is_a_sell:
-                    SELL_PRICE = process_sell(is_a_sell, ax=ax, CLOSE=CLOSE, df=df, dfline=dfline)
+                if is_a_sell:                  
+                    if limitsell:
+                        SELL_PRICE = process_sell(is_a_sell, ax=ax, CLOSE=g.stoplimit_price, df=df, dfline=dfline)
+                        g.stoplimit_price = 1e-10
+                    else:
+                        SELL_PRICE = process_sell(is_a_sell, ax=ax, CLOSE=CLOSE, df=df, dfline=dfline)
                 else:
                     SELL_PRICE = float("Nan")
             else:

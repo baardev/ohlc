@@ -48,6 +48,7 @@ pct_cap_return = 0
 pnl_running = float("Nan")
 pct_running = float("Nan")
 
+stoplimit_price = False
 sell_mark = float("Nan")
 idx = 0
 gcounter = 0
