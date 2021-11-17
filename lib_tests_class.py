@@ -27,8 +27,9 @@ class Tests:
 
         # + * BB lines abd avg
         self.BB3_UP_AVG = dfl['bbuAvg']
-        self.BB3_MID_AVG = dfl['bbmAvg']
         self.BB3_LOW_AVG = dfl['bblAvg']
+        self.BB3_MID_AVG = dfl['bbmAvg']
+
 
         self.BB_HIGH_0 = dfl['bbh0']
         self.BB_HIGH_1 = dfl['bbh1']
@@ -36,6 +37,11 @@ class Tests:
         self.BB_LOW_0 = dfl['bbl0']
         self.BB_LOW_1 = dfl['bbl1']
         self.BB_LOW_2 = dfl['bbl2']
+
+        self.STEPSUP = dfl['stepsup']
+        self.STEPSDN = dfl['stepsdn']
+
+
 
         if "ou-mid" in df:
             self.OU_MID = dfl['ou-mid']
@@ -105,7 +111,6 @@ class Tests:
         refval = float(kwargs['against'])
         current_val = float(varval.iloc[len(varval.index)-1])
         prev_val = float(varval.iloc[len(varval.index)-2])
-
         if prev_val > refval and current_val <= refval:
             rs = True
         return rs
@@ -188,6 +193,33 @@ class Tests:
         return FLAG
 
 
+
+    # ! ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+    def BUY_test(self):
+        FLAG = True
+        FLAG = FLAG and self.CLOSE < self.BB3_LOW_AVG
+        # FLAG = FLAG and self.STEPSDN <= -2
+        # FLAG = FLAG and self.STEPSDN <= -2
+
+        # FLAG = FLAG and self.compare(price=self.CLOSE, type='lt', against=self.BB3_LOW_AVG)
+
+        # FLAG = FLAG and self.xunder(trigger = self.df['ffmap'], against=self.FFMAPLLIM)
+        return FLAG
+    # * ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+    def SELL_test(self):
+        FLAG = True
+        FLAG = True
+        FLAG = FLAG and (
+            # self.compare(price = self.HIGH, type='gt', against = self.BB3_UP_AVG)
+            self.compare(price = self.CLOSE, type='gt', against = self.BB3_MID_AVG)
+            or
+            (
+                self.xunder(trigger=self.df['ffmap2'], against=self.FFMAPLLIM2)
+                and
+                self.compare(price = self.CLOSE, type='gt', against = self.AVG_PRICE)
+            )
+        )
+        return FLAG
 
 
     # ! ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓

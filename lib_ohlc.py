@@ -181,10 +181,10 @@ def orders(order, **kwargs):
         tord['fees'] = 0
         # ! these vals are takes from the empircal number of the CB dev sandbox transactions
         if order['side'] == "buy":
-            tord['fees'] = (order['size'] * order['price']) * 0.000003
+            tord['fees'] = (order['size'] * order['price']) * g.buy_fee # * sumulate fee
 
         if order['side'] == "sell":
-            tord['fees'] = (order['size'] * order['price']) * 0.000025
+            tord['fees'] = (order['size'] * order['price']) * g.sell_fee # * sumulate fee
             
         tord['session'] = g.session_name
         tord['state'] = True
@@ -250,13 +250,11 @@ def get_running_bal(**kwargs):
         pass
 
 
-
-
     if version == 2:
-        cmd = f"select sum(price*size) from orders where side = 'buy' and session = '{g.session_name}'"
+        cmd = f"select sum(price*size)-sum(fees) from orders where side = 'buy' and session = '{g.session_name}'"
         buyrs = list(sqlex(cmd, ret=ret))
 
-        cmd = f"select sum(price*size) from orders where side = 'sell' and session = '{g.session_name}'"
+        cmd = f"select sum(price*size)-sum(fees) from orders where side = 'sell' and session = '{g.session_name}'"
         sellrs = list(sqlex(cmd, ret=ret))
 
         profit = sellrs[0] - buyrs[0] 
@@ -364,6 +362,59 @@ def clearstate():
 
     state_wr("pnl_running", float("Nan"))
     state_wr("pct_running", float("Nan"))
+
+def loadstate():
+    print("RECOVERING...")
+
+    g.session_name = state_r('session_name')
+    print("g.session_name",g.session_name)
+
+    g.startdate = state_r("last_seen_date")
+    print("g.startdate",g.startdate)
+
+    g.tot_buys = state_r("tot_buys")
+    print("g.tot_buys",g.tot_buys)
+
+    g.tot_sells = state_r("tot_sells")
+    print("g.tot_sells", g.tot_sells)
+
+    g.current_run_count = state_r("current_run_count")
+    print("g.current_run_count", g.current_run_count)
+
+    g.subtot_qty = state_r("curr_qty")
+    print("g.subtot_qty", g.subtot_qty)
+
+    g.purch_qty = state_r("purch_qty")
+    print("g.purch_qty", g.purch_qty)
+
+    g.avg_price = state_r("last_avg_price")
+    print("g.avg_price", g.avg_price)
+
+    g.pnl_running = state_r("pnl_running")
+    print("g.pnl_running", g.pnl_running)
+
+    g.pct_running = state_r("pct_running")
+    print("g.pct_running", g.pct_running)
+
+    # state_wr("open_buyscanbuy", True)
+    # state_wr("open_buyscansell", False)
+    # state_wr("from", False)
+    # state_wr("max_qty", 0)
+    # state_wr("first_buy_price", 0)
+    # state_wr("last_buy_price", 0)
+    # state_wr("largest_run_count", 0)
+    # state_wr("last_run_count", 0)
+    # state_wr("delta_days", 0)
+    # state_wr("run_counts", [])
+
+    # state_wr('open_buys', [])
+    # state_wr('qty_holding', [])
+
+
+    # state_wr("pct_gain_list", [])
+    # state_wr("pct_record_list", [])
+    # state_wr("pnl_record_list", [])
+    # state_wr("running_tot", [])
 
 
 # + -------------------------------------------------------------
@@ -557,9 +608,16 @@ def get_datetime_str():
     print(event)
 
 
-def state_wr(n, v):
-    if g.state:  # + array in mem exists
-        g.state[n] = v
+def state_wr(name, v):
+    # * if supposed to be a number, but it Nan...
+    try:
+        if math.isnan(v):
+            return  #* just leave if value is Nan
+    except:
+        pass
+
+    if g.state:  # ! array in mem exists - currently not in use
+        g.state[name] = v
     else:
         try:
             with open(g.statefile) as json_file:
@@ -567,18 +625,20 @@ def state_wr(n, v):
         except Exception as ex:
             handleEx(ex, f"Check the file '{g.statefile}' (for ex. at 'https://jsonlint.com/)'")
             exit(1)
-        data[n] = v
+        data[name] = v
         try:
             with open(g.statefile, 'w') as outfile:
                 json.dump(data, outfile, indent=4)
         except Exception as ex:
             handleEx(ex, f"Check the file '{g.statefile}' (for ex. at 'https://jsonlint.com/)'")
             exit(1)
-        data[n] = v
+        data[name] = v
 
 
 def state_ap(listname, v):
-    if g.state:  # + array in mem exists
+    if math.isnan(v):
+        return  #* just leave if value is Nan
+    if g.state:  # ! array in mem exists - currently not in use
         g.state[listname].append(v)
     else:
         with open(g.statefile) as json_file:
@@ -588,16 +648,20 @@ def state_ap(listname, v):
             json.dump(data, outfile, indent=4)
 
 
-def state_r(n, **kwargs):
-    if g.state:  # + array in mem exists
-        return g.state[n]
+def state_r(name, **kwargs):
+    if g.state:  # ! array in mem exists... currently not in use
+        return g.state[name]
     else:
         try:
             with open(g.statefile) as json_file:
                 data = json.load(json_file)
-            return data[n]
+
+            if type(data[name]) == list:
+                data[name] = [x for x in data[name] if np.isnan(x) == False]
+
+            return data[name]
         except:
-            print(f"Attempting to read '{n}' from '{g.statefile}")
+            print(f"Attempting to read '{name}' from '{g.statefile}")
             return False
 
 
@@ -913,6 +977,45 @@ def normalize_col_df(df, column, newmin=0, newmax=1):
 
 # + - ADDS - mainly used just for BB3 and BBAVG, # + 1 and # + 2
 
+def make_steppers(df):
+    startat = 4
+    amat = 0
+    stepct = 0
+    df['steps']=range(len(df))
+
+    def tfuncd(dfline, **kwargs):
+        df = kwargs['df']
+        idx = dfline['ID']
+        if idx > 4:
+            cval = df[df['ID'] == idx]['Close'].values[0]
+            pval = df[df['ID'] == idx-1]['Close'].values[0]
+            if cval < pval:
+                g.stepctd = g.stepctd  -1
+            else:
+                g.stepctd = 0
+            return int(g.stepctd)
+
+    def tfuncu(dfline, **kwargs):
+        df = kwargs['df']
+        idx = dfline['ID']
+
+        if idx > 4:
+            cval = df[df['ID'] == idx]['Close'].values[0]
+            pval = df[df['ID'] == idx-1]['Close'].values[0]
+
+            if cval > pval:
+                g.stepctu = g.stepctu  +1
+            else:
+                g.stepctu = 0
+
+            return int(g.stepctu)
+
+    df['stepsdn'] = df.apply(lambda x: tfuncd(x, df=df), axis=1)
+    df['stepsup'] = df.apply(lambda x: tfuncu(x, df=df), axis=1)
+
+
+
+
 def add_bolbands(ohlc, **kwargs):
     ax = kwargs['ax']
 
@@ -1196,7 +1299,7 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
         df.rename(columns={'Date': 'Timestamp'}, inplace=True)
         df['orgClose'] = df['Close']
 
-        if cvars.get("startdate"):
+        if g.startdate:
             # + * calculate new CURRENT time, not starting time of chart
             # old_start_time = df.iloc[0]['Timestamp']
             # new_start_time = df.iloc[0]['Timestamp'] + dt.timedelta(minutes=5 * g.datawindow)
@@ -1204,7 +1307,7 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
             # date_mask = (df['Timestamp'] > new_start_time)
 
             # * apply date filer
-            date_mask = (df['Timestamp'] > cvars.get("startdate"))
+            date_mask = (df['Timestamp'] > g.startdate)
             df = df.loc[date_mask]
 
         df["Date"] = pd.to_datetime(df['Timestamp'], unit='ms')
@@ -1618,18 +1721,6 @@ def get_pt1(ohlc, **kwargs):
 
     ohlc['one_pt'] = normalize_col(ohlc['one_pt'], -0.5, 0.5)
 
-    plot_pt1 = mpf.make_addplot(
-        ohlc['one_pt'],
-        ax=ax,
-        type="line",
-        color=cvars.get("pt1style")['color'],
-        width=cvars.get("pt1style")['width'],
-        alpha=1  # + cvars.get('tholostyle_I')['color'],
-    )
-    ax.axhline(y=0.0, color='black')
-    ax.axhline(y=cvars.get("pt1_highlimit_sell"), color='cyan')
-    ax.axhline(y=cvars.get("pt1_lowlimit_buy"), color='magenta')
-
     return [plot_pt1]
 
 
@@ -1873,6 +1964,8 @@ def sqlex(cmd, **kwargs):
 
 def calcfees(rs_ary):
     fees = 0
+    print(rs_ary) #XXX
+    waitfor()
     try:
         for fn in rs_ary['resp']:
             rrec = pd.read_pickle(fn)
@@ -1944,7 +2037,20 @@ def plots_pt1(ohlc, **kwargs):
     ax = kwargs['ax']
     patches = kwargs['patches']
 
-    plots_pt1_list = add_plots(plots, get_pt1(ohlc, ax=ax))
+    plot_pt1 = mpf.make_addplot(
+        ohlc['one_pt'],
+        ax=ax,
+        type="line",
+        color=cvars.get("pt1style")['color'],
+        width=cvars.get("pt1style")['width'],
+        alpha=1  # + cvars.get('tholostyle_I')['color'],
+    )
+    plots_pt1_list = add_plots(plots, plot_pt1)
+
+    ax.axhline(y=0.0, color='black')
+    ax.axhline(y=cvars.get("pt1_highlimit_sell"), color='cyan')
+    ax.axhline(y=cvars.get("pt1_lowlimit_buy"), color='magenta')
+
     patches.append(mpatches.Patch(color=cvars.get('pt1style')['color'], label="1-pt"))
 
     return plots_pt1_list
@@ -2024,7 +2130,7 @@ def plots_sigffmb(ohlc, **kwargs):
         alpha=cvars.get('ffmapstyle')['alpha'],
     )
 
-    patches.append(mpatches.Patch(color=cvars.get('ffmapstyle')['color'], label="OHLC(sum(6f)^2)"))
+    patches.append(mpatches.Patch(color=cvars.get('ffmapstyle')['color'], label="OHLC(sum(6f)^2) BUY"))
 
     amin = float(ohlc['ffmap'].min())
     amax = float(ohlc['ffmap'].max())
@@ -2085,7 +2191,7 @@ def plots_sigffmb2(ohlc, **kwargs):
         alpha=cvars.get('ffmap2style')['alpha'],
     )
 
-    patches.append(mpatches.Patch(color=cvars.get('ffmapstyle')['color'], label="Rohlc(sum(6f)^2)"))
+    patches.append(mpatches.Patch(color=cvars.get('ffmap2style')['color'], label="Rohlc(sum(6f)^2) SELL"))
 
     amin = float(ohlc['ffmap2'].min())
     amax = float(ohlc['ffmap2'].max())
@@ -2444,11 +2550,14 @@ def process_buy(is_a_buy, **kwargs):
     # e = f"{g.avg_price:06.4f}"
 
     # * print to console    
-    print(f"[{g.gcounter:05d}]"+Fore.RED + f"Hold {s_size} @ ${s_price} == ${s_cost}"+Fore.RESET) #" St {g.subtot_cost:06.4f}, Sq {g.subtot_qty:06.4f}, avg {g.avg_price:06.4f}"+Fore.RESET)
+    print(f"[{g.gcounter:05d}] [{order['order_time']}] "+Fore.RED + f"Hold {s_size} @ ${s_price} == ${s_cost}"+Fore.RESET) #" St {g.subtot_cost:06.4f}, Sq {g.subtot_qty:06.4f}, avg {g.avg_price:06.4f}"+Fore.RESET)
 
     # * adjust purch_qty according to rules, and make number compatible with CB api
-    g.purch_qty = g.purch_qty * (1 + (g.purch_qty_adj_pct / 100))
-    g.purch_qty = int(g.purch_qty * 1000) / 1000  # ! Smallest unit allowed (on CB) is 0.00000001
+    if g.needs_reload:
+        g.purch_qty = state_r("purch_qty")
+    else:
+        g.purch_qty = g.purch_qty * (1 + (g.purch_qty_adj_pct / 100))
+        g.purch_qty = int(g.purch_qty * 1000) / 1000  # ! Smallest unit allowed (on CB) is 0.00000001
 
     # * update state file
     state_wr("purch_qty", g.purch_qty)
@@ -2514,6 +2623,9 @@ def process_sell(is_a_sell, **kwargs):
     g.pct_running = sum(state_r('pct_gain_list'))
     state_ap("pct_gain_list", g.last_pct_gain)
     state_ap("pnl_record_list", g.subtot_value - g.subtot_cost)
+
+    print(g.pnl_running,g.pct_running)
+
     state_wr("pnl_running", g.pnl_running)
     state_wr("pct_running", g.pct_running)
 
@@ -2521,7 +2633,7 @@ def process_sell(is_a_sell, **kwargs):
     state_ap("run_counts", g.current_run_count)
     g.current_run_count = 0  # + * clear current count
 
-    # * recalx max_qty, comparing last to current, and saving max, then reset
+    # * recalc max_qty, comparing last to current, and saving max, then reset
     this_qty = state_r("max_qty")
     state_wr("max_qty", max(this_qty, g.subtot_qty))
     state_wr("curr_qty", 0)
@@ -2590,12 +2702,15 @@ def process_sell(is_a_sell, **kwargs):
     s_price = f"{SELL_PRICE:6.4f}"
     s_tot = f"{g.subtot_qty * SELL_PRICE:6.4f}"
 
-    # * uodate DB with pct
+    # * update DB with pct
     cmd = f"UPDATE orders set pct = {g.pct_return}, cap_pct = {g.pct_cap_return} where uid = '{g.gcounter }' and session = '{g.session_name}'"
+
+    # ! JWFIX RELOAD EERROR sending nans
+
     sqlex(cmd)
 
     # * print to console
-    print(f"[{g.gcounter:05d}]"+Fore.GREEN + f"Sold {s_size} @ ${s_price} == ${s_tot}   PnL: ${(g.subtot_qty * SELL_PRICE) - g.subtot_cost:06.4f}  {g.pct_return * 100:06.4f}% / {g.pct_cap_return * 100:06.4f}%"+Fore.RESET)  
+    print(f"[{g.gcounter:05d}] [{order['order_time']}] "+Fore.GREEN + f"Sold {s_size} @ ${s_price} == ${s_tot}   PnL: ${(g.subtot_qty * SELL_PRICE) - g.subtot_cost:06.4f}  {g.pct_return * 100:06.4f}% / {g.pct_cap_return * 100:06.4f}%"+Fore.RESET)
     g.capital = g.capital + (g.capital * g.pct_cap_return)
 
     # * calc and print a running total
@@ -2627,6 +2742,9 @@ def trigger_bb3avg(df, **kwargs):
         g.idx = dfline['ID']
         CLOSE = dfline['Close']
         OPEN = dfline['Open']
+        STEPSDN = dfline['stepsdn']
+        STEPSUP = dfline['stepsup']
+
 
         # + -------------------------------------------------------------------
         # + BUY
@@ -2642,9 +2760,9 @@ def trigger_bb3avg(df, **kwargs):
                 tc = Tests(cvars, dfline, df, idx=g.idx)
 
                 # * run test, passing the BUY test algo, or run is alt-S, or another external trigger, has been activated
-                is_a_buy = \
-                    (tc.buytest(cvars.get('testpair')[0]) or g.external_buy_signal) \
-                    and g.buys_permitted  # * we haven't reached the maxbuy limit yet
+                is_a_buy = is_a_buy and tc.buytest(cvars.get('testpair')[0]) or g.external_buy_signal
+                is_a_buy = is_a_buy and g.buys_permitted       # * we haven't reached the maxbuy limit yet
+                # is_a_buy = is_a_buy and STEPSDN <= -2              # * at least 3 previous downs
 
                 # * BUY is approved, so check that we are not runnng hot
                 if is_a_buy and (g.gcounter >= g.cooldown):
@@ -2675,7 +2793,9 @@ def trigger_bb3avg(df, **kwargs):
                     g.external_sell_signal = True
 
                 tc = Tests(cvars, dfline, df, idx=g.idx)
-                is_a_sell = tc.selltest(cvars.get('testpair')[1]) or g.external_sell_signal
+                is_a_sell = is_a_sell and tc.selltest(cvars.get('testpair')[1]) or g.external_sell_signal
+                # is_a_sell = is_a_sell and STEPSUP >= 2              # * at least 3 previous downs
+
 
                 if is_a_sell:                  
                     if limitsell:

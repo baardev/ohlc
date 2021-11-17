@@ -45,6 +45,10 @@ last_pct_record = float("Nan")
 pct_return = 0
 pct_cap_return = 0
 
+stepctu = 0
+stepctd = 0
+buy_fee = 0.000003
+sell_fee = 0.000025
 pnl_running = float("Nan")
 pct_running = float("Nan")
 epoch_boundry_ready = False
@@ -74,6 +78,8 @@ cooldown = 0
 last_close = 0
 this_close = 0
 
+needs_reload = False
+startdate = "1970-01-01 00:00:00"
 
 # ! these are the only fields allowed for the coinbase order(s), as determined by 'cb_order.py'
 cflds = {

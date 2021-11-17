@@ -1,0 +1,3 @@
+ssh jw@duncanstroud.com ./STARTVNC
+ssh -N -T -L 5900:localhost:5900 jw@duncanstroud.com &
+vncviewer -geometry 1920x1280 localhost:5900

@@ -61,7 +61,7 @@ g.time_start = time.time()
 
 g.logit = logging
 g.logit.basicConfig(
-    filename="/home/jw/src/jmcap/ohlc/logs/ohlc.log",
+    filename="logs/ohlc.log",
     filemode='a',
     format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
     datefmt='%H:%M:%S',
@@ -71,13 +71,38 @@ stdout_handler = g.logit.StreamHandler(sys.stdout)
 # ! Gets error when enabled
 # ! extra = {'mod_name':'AAA'}
 # ! g.logit = g.logit.LoggerAdapter(g.logit, extra)
+# * Did we exit gracefully from the last time?
+
+g.startdate = o.cvars.get('startdate')
+
+if g.autoclear: #* automatically clear all (-c)
+    o.clearstate()
+    o.state_wr('isnewrun',True)
+    g.gcounter = 0
+else:
+    if o.waitfor(["Clear Last Data? (y/N)"]): # * ask user, default to 'N'
+        o.clearstate()
+        o.state_wr('isnewrun',True)
+    else:                                     # * reload old data
+        o.state_wr('isnewrun', False)
+        o.loadstate()
+        g.needs_reload = True
+
+    g.gcounter = o.state_r("gcounter")
 
 runtime = o.cvars.get("runtime")
 if runtime == "coinbase_live":
     o.waitfor(f"!!! RUNNING ON LIVE / {o.cvars.get('datatype')} !!!")
 
 g.logit.info(f"Loading from {g.cfgfile}", extra={'mod_name': 'olhc'})
-g.session_name = o.get_a_word()
+
+if not o.state_r('isnewrun'):
+    g.session_name = o.get_a_word()
+    g.session_name = o.state_r("session_name")
+else:
+    g.session_name = o.get_a_word()
+    o.state_wr("session_name",g.session_name)
+
 o.cvars.prev_md5 = o.cvars.this_md5
 g.datawindow = o.cvars.get("datawindow")
 g.interval = o.cvars.get("interval")
@@ -85,13 +110,9 @@ if interval_pause:
     g.interval = interval_pause
 
 # g.purch_qty = o.cvars.get("purch_qty")
+g.buy_fee = o.cvars.get('buy_fee')
+g.sell_fee = o.cvars.get('sell_fee')
 
-# * Did we exit gracefully from the last time?
-if g.autoclear:
-    o.clearstate()
-else:
-    if o.waitfor(["Clear Last Data? (y/N)"]):
-        o.clearstate()
 
 g.capital =  o.cvars.get("capital")
 g.purch_pct =  o.cvars.get("purch_pct")/100  
@@ -153,7 +174,6 @@ if not os.path.isfile(g.statefile): Path(g.statefile).touch()
 
 
 
-o.state_wr("session_name", f"{g.cwd} : {g.session_name}")
 
 # + ! https://pynput.readthedocs.io/en/latest/keyboard.html
 print(Fore.MAGENTA + Style.BRIGHT)
@@ -170,7 +190,6 @@ print("┃ Alt + Home       : Verbose/Quiet     ┃")
 print("┃ Alt + b          : Buy signal        ┃")
 print("┃ Alt + s          : Sell signal       ┃")
 print("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛")
-print(f"Interval set at {g.interval}ms ({g.interval/1000}s)")
 o.cclr()
 
 # * ready to go, but launch only on boundry if live
@@ -178,12 +197,14 @@ if o.cvars.get('datatype') == "live":
     bt = o.cvars.get('load_on_boundary')
     if not g.epoch_boundry_ready:
         while o.is_epoch_boundry(bt) != 0:
-            print(f"{g.epoch_boundry_countdown} waiting for epoch boundry ({bt})")
+            print(f"{bt - g.epoch_boundry_countdown} waiting for epoch boundry ({bt})", end="\r")
             time.sleep(1)
         g.epoch_boundry_ready = True
         # * we found teh boundry, but now need to wait for teh data to get loaded and updated from the provider
+        print(f"{o.cvars.get('boundary_load_delay')} sec. latency pause...")
         time.sleep(o.cvars.get('boundary_load_delay'))
 
+print(f"Loop interval set at {g.interval}ms ({g.interval/1000}s)                                         ")
 
 #   ───────────────────────────────────────────────────────────────────────────────────────
 #   Attempts to connect via the plot have failed
@@ -220,6 +241,7 @@ def working(k):
 
     o.log2file(f"[{g.gcounter}]","counter.log")
     g.gcounter = g.gcounter + 1
+    o.state_wr('gcounter',g.gcounter)
     #   num_axes = len(ax)
     g.prev_md5 = o.cvars.this_md5
     o.cvars = o.Cvars(g.cfgfile)
@@ -277,8 +299,24 @@ def working(k):
 
     # ! the other way is to just set teh interval to 300000 (5m)
 
+    retry = 0
+    expass = False
 
-    ohlc = o.get_ohlc(g.ticker_src, g.spot_src, since=t.since)
+    while not expass or retry < 10:
+        try:
+            # * reinstantiate connections in case of timeout
+            g.ticker_src = ccxt.binance()
+            g.spot_src = ccxt.coinbase()
+            ohlc = o.get_ohlc(g.ticker_src, g.spot_src, since=t.since)
+            retry = retry + 1
+            expass = True
+        except BinanceAPIException as e:
+            print(e)
+            print('Something went wrong. Error occured at %s. Wait for 1 minute.' % (datetime.datetime.now().astimezone(timezone('UTC'))))
+            time.sleep(60)
+            retry = retry + 1
+            expass = False
+            # continue
 
     # ! ───────────────────────────────────────────────────────────────────────────────────────
     # ! CHECK THE SIZE OF THE DATAFRAME and Gracefully exit on error or command
@@ -330,6 +368,8 @@ def working(k):
     # * ───────────────────────────────────────────────────────────────────────────────────────
     # * CREATE ADDITIONAL PLOTS AND ADD TO PLOTS ARRAY
     # * ───────────────────────────────────────────────────────────────────────────────────────
+    o.make_steppers(ohlc)  # * fill the stepper data
+
     # + ───────────────────────────────────────────────────────────────────────────────────────
     # + "plots_mav" makes moving aveage lines
     # + ───────────────────────────────────────────────────────────────────────────────────────
@@ -538,16 +578,22 @@ def working(k):
     if o.cvars.get("display"):
         mpf.plot(ohlc, type=ptype, ax=ax[0], addplot=plots, returnfig=True)
 
-    # ! mpf.plot returns (at least) fig, but assigning it doesn;t work
-    # ! fig = mpf.plot(ohlc, type.... crashed after the first assgnment.  can't find the canvas or axes anymore, even of fig is defined as global
+    # - mpf.plot returns (at least) fig, but assigning it doesn't work
+    # - fig = mpf.plot(ohlc, type.... crashed after the first assgnment.  can't find the canvas or axes anymore, even of fig is defined as global
 
-    # ! this is the ONLY way to get a non-blocking timer working
-    # ! https://stackoverflow.com/questions/16732379/stop-start-pause-in-python-matplotlib-animation
+    # - this is the ONLY way to get a non-blocking timer working
+    # - https://stackoverflow.com/questions/16732379/stop-start-pause-in-python-matplotlib-animation
+
+    # ! JWFIX need to have a flag to indicate of ANY pausing is on, and/or diff var as using g.interval causes a 2x load time
+
     # plt.ion()
     # plt.gcf().canvas.start_event_loop(g.interval / 1000)
 
-    #* save every record transaction
+    #* save every transaction
     g.df_allrecords = g.df_allrecords.append(ohlc.tail(1),ignore_index=True)
+
+
+    g.needs_reload = False # * we've reloade from last run after first iteration, so turn off reload flag
 
 #   frames=<n>, n is completely arbitrary
 ani = animation.FuncAnimation(fig=fig, func=animate, frames=1086400, interval=g.interval, repeat=True)

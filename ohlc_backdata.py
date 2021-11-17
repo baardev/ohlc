@@ -28,8 +28,7 @@ except getopt.GetoptError as err:
 input_filename = False
 date = False
 g.idx = 0
-print("here2")
-
+# print("▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓")
 
 for opt, arg in opts:
     if opt in ("-h", "--help"):
@@ -122,7 +121,7 @@ def grab(**kwargs):
     ohlc = df.loc[:, ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']]
     ohlc['Stamp'] = pd.to_datetime(ohlc['Date'], unit='ms')
 
-    print(ohlc)
+    # print(ohlc)
 
     fromdate_ms = ohlc['Date'].iloc[0]
     todate_ms = ohlc['Date'].iloc[-1]
@@ -153,7 +152,6 @@ def grab(**kwargs):
 # + 
 # + ./ohlc_backdata.py -d 1514812800000 -i 0
 
-print("here1")
 sd0 = start_date
 sd1 = grab(start=sd0, t=t_frame, sym=symbol)
 

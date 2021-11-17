@@ -1,5 +1,7 @@
 ## Todo
 Check JWFIX notes
+_lastloaded saving to ohlc dir
+rohlc legend color
 
 ## Process to generate backdata
 
@@ -144,7 +146,6 @@ data
 logs
 records
 safe
-ship
 ```
 ### OHLC utils
 ```
@@ -154,20 +155,20 @@ merge.py
 mkLIVE
 pread.py
 view.py
+gview.py
 ohlc_backdata.py
+backdata.py
 liveview.py
 ```
 ### Misc utils
 ```
-RUN 
 test_cb.sh
-launch.sh
 rep
-test.py
 ```
 ### Config files
 ```
 config_0.hcl
+remote_config.json
 state_0.json
 ```
 ### Output
@@ -177,12 +178,13 @@ results.xls
 ```
 ### Docs
 ```
-NOTES.md
+README.md
 ```
 
 ### Backups
 ```
 ohlc.zip
+../ORG
 ```
 
 ## Recovery instruction for fubared boot
