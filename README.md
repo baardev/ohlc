@@ -192,3 +192,22 @@ https://superuser.com/questions/111152/whats-the-proper-way-to-prepare-chroot-to
 
 ### VCE
 https://code.visualstudio.com/docs/getstarted/keybindings
+
+
+
+### TESTS
+
+## ORG1
+`./config_ORG1.hcl` (juniper)
+`./config_ORG.hcl`  (orthodontist)
+
+- "datawindow":216 
+- "testpair":["BUY_CltLowBbavg", "SELL_HgtHiBbavg_ffmapLowCoA"]
+- maxbuys=10
+
+10x improvement over same 'finicky' testpair, but with datawindow=28
+
+## PROD
+`config_PROD.hcl`  (wastewater)
+
+- maxbuy = 1

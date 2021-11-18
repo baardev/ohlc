@@ -1,0 +1,42 @@
+#!/bin/python
+import os,sys,getopt
+import time
+# import lib_globals as g
+import pprint as pp
+import json
+
+ndir = False
+
+argv = sys.argv[1:]
+try:
+    opts, args = getopt.getopt(argv, "-hd:", ["help","dir="])
+except getopt.GetoptError as err:
+    sys.exit(2)
+
+for opt, arg in opts:
+    if opt in ("-h", "--help"):
+        print("-h, --help   this info")
+        print("-d, --dir  in /home/jw/src/jmcap")
+        sys.exit(0)
+
+    if opt in ("-d", "--dir"):
+        ndir = arg
+
+import lib_ohlc as o
+print(f"IN DIRECTIRY:: {ndir}")
+
+ndir = f"/home/jw/src/jmcap/{ndir}"
+
+print(f"deleting {ndir}")
+os.system(f"rm -rf {ndir}")
+
+print(f"mkdir {ndir}")
+os.makedirs(ndir, exist_ok=True)
+os.system(f"./mkLIVE {ndir} C")
+
+# cmd = f'terminator -e > /dev/null 2>&1 "cd {ndir} && ./CLEANRUN -c -b"'
+cmd = f'terminator -e > /dev/null 2>&1 "cd {ndir} && /bin/bash"'
+print(cmd)
+print("------------------------------------------------------")
+os.system(cmd)
+

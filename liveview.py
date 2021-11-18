@@ -3,8 +3,6 @@
 # + matplotlib.use('Tkagg')
 import matplotlib
 
-import lib_ohlc
-
 matplotlib.use('Tkagg')
 import lib_globals as g
 import datetime as dt
@@ -19,7 +17,7 @@ import lib_panzoom as c
 import pandas as pd
 import json
 import getopt, sys, os
-import inspect
+import lib_globals as g
 
 fromdate = False
 todate = False
@@ -72,13 +70,17 @@ x1 = fig.add_subplot(111)  # + OHLC - top left
 ax = fig.get_axes()
 multi = MultiCursor(fig.canvas, ax, color='r', lw=1, horizOn=True, vertOn=True)
 
+
 def get_df():
+    global session_name
     global fromdate
     global todate
     def state_r(n):
         with open(input_filename) as json_file:  # * read teh state file...
-            data = json.load(json_file)         
+            data = json.load(json_file)
+
         try:                                     # * return the column in question
+            g.session_name = data['session_name']
             return data[n]
         except Exception as e:
             print(f"[1]Error:{e}...` continuing")
@@ -103,6 +105,7 @@ def get_df():
     return df
 
 def animate(k):
+    global session_name
     num_axes = len(ax)
     df = get_df()
     if isinstance(df,pd.DataFrame):
@@ -110,7 +113,7 @@ def animate(k):
 
         for i in range(num_axes):
             ax[i].clear()
-            ax[i].set_title(f'{input_filename} -> {colname}  {fromdate} - {todate} (DAYS: {deltadays})')
+            ax[i].set_title(f'{g.session_name}/{input_filename} -> {colname}  {fromdate} - {todate} (DAYS: {deltadays})')
             ax[i].grid(True, color='grey', alpha=0.3)
             # + ax[i].axhline(y=0.0, color='black')
         ax_patches = []
@@ -118,5 +121,5 @@ def animate(k):
             ax_patches.append([])
         plt.plot(df['ID'], df[colname])
 
-ani = animation.FuncAnimation(fig=fig, func=animate, frames=86400, interval=1000, blit = False, repeat=True)
+ani = animation.FuncAnimation(fig=fig, func=animate, frames=86400, interval=60000, blit = False, repeat=True)
 plt.show()

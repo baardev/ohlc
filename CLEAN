@@ -6,4 +6,4 @@ mv *.bak safe
 rm DEADJOE
 rm nohup*
 #rm -rf PROD*
-mysql -ujmc -p6kjahsijuhdxhgd jmcap -e "delete from orders"
+#mysql -ujmc -p6kjahsijuhdxhgd jmcap -e "delete from orders"

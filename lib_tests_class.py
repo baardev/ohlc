@@ -197,7 +197,7 @@ class Tests:
     # ! ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
     def BUY_test(self):
         FLAG = True
-        FLAG = FLAG and self.CLOSE < self.BB3_LOW_AVG
+        FLAG = FLAG and self.Cunder3BBlow
         # FLAG = FLAG and self.STEPSDN <= -2
         # FLAG = FLAG and self.STEPSDN <= -2
 
@@ -208,17 +208,7 @@ class Tests:
     # * ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
     def SELL_test(self):
         FLAG = True
-        FLAG = True
-        FLAG = FLAG and (
-            # self.compare(price = self.HIGH, type='gt', against = self.BB3_UP_AVG)
-            self.compare(price = self.CLOSE, type='gt', against = self.BB3_MID_AVG)
-            or
-            (
-                self.xunder(trigger=self.df['ffmap2'], against=self.FFMAPLLIM2)
-                and
-                self.compare(price = self.CLOSE, type='gt', against = self.AVG_PRICE)
-            )
-        )
+        FLAG = FLAG and self.Cover3BBhigh
         return FLAG
 
 

@@ -20,7 +20,7 @@ cp data/*   $1/data   > /dev/null 2>&1
 
 if [ "$2" == "C" ]; then
     echo "INCLUDING 'config_0.hcl'"
-    cp config_0.hcl $1/
+    cp *.hcl $1/
 else
     echo "NOT INCLUDING 'config_0.hcl'"
 fi

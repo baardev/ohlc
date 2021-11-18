@@ -28,7 +28,6 @@ import time
 
 extra = {'mod_name': 'lib_olhc'}
 
-
 # + -------------------------------------------------------------
 # +  CLASSES
 # + -------------------------------------------------------------
@@ -2624,8 +2623,6 @@ def process_sell(is_a_sell, **kwargs):
     state_ap("pct_gain_list", g.last_pct_gain)
     state_ap("pnl_record_list", g.subtot_value - g.subtot_cost)
 
-    print(g.pnl_running,g.pct_running)
-
     state_wr("pnl_running", g.pnl_running)
     state_wr("pct_running", g.pct_running)
 
@@ -2834,5 +2831,5 @@ def trigger_bb3avg(df, **kwargs):
 
     return [[p1], [p2]]
 
-
+# print("================= ",g.cfgfile)
 cvars = Cvars(g.cfgfile)

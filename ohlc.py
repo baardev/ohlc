@@ -21,19 +21,23 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 from matplotlib.widgets import MultiCursor
 import mplfinance as mpf
-import lib_ohlc as o
 import lib_panzoom as c
 import lib_globals as g
+import lib_ohlc as o
+
 import lib_listener as kb
 from pathlib import Path
 from colorama import init
 from colorama import Fore, Back, Style
+import datetime
 init()
 # + ≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
 argv = sys.argv[1:]
 interval_pause = False
+# g.cfgfile = "config_0.hcl"
+
 try:
-    opts, args = getopt.getopt(argv, "-hi:bcp:", ["help", "instance", "batch", "clear", "pause="])
+    opts, args = getopt.getopt(argv, "-hi:bcp:j:", ["help", "instance", "batch", "clear", "pause=","json="])
 except getopt.GetoptError as err:
     sys.exit(2)
 
@@ -42,6 +46,7 @@ for opt, arg in opts:
         print("-i, --instance   instance number")
         print("-b, --batch  batchmode")
         print("-c, --clear  auto clear")
+        print("-j, --json  alt json cfg file")
         print("-p, --pause  interval pause")
         sys.exit(0)
 
@@ -49,6 +54,11 @@ for opt, arg in opts:
         g.instance_num = f"{arg}"
         g.cfgfile = f"config_{g.instance_num}.hcl"
         g.statefile = f"state_{arg}.json"
+    if opt in ("-j", "--json"):
+        g.cfgfile = arg
+        # * the original cvars was already loaded, which is needed toi get the o.funtions, but we
+        # * need to reload cvars with the new config file.  This needs to be split up :/
+        o.cvars = o.Cvars(g.cfgfile)
     if opt in ("-b", "--batch"):
         g.batchmode = True
     if opt in ("-c", "--clear"):
@@ -56,7 +66,8 @@ for opt, arg in opts:
     if opt in ("-p", "--pause"):
         interval_pause = int(arg)
 # + ≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
-
+print(f"cfgfile: {g.cfgfile}")
+print(f"TEST: {o.cvars.get('thisfile')}")
 g.time_start = time.time()
 
 g.logit = logging
@@ -90,8 +101,7 @@ else:
 
     g.gcounter = o.state_r("gcounter")
 
-runtime = o.cvars.get("runtime")
-if runtime == "coinbase_live":
+if o.cvars.get("datatype") == "live":
     o.waitfor(f"!!! RUNNING ON LIVE / {o.cvars.get('datatype')} !!!")
 
 g.logit.info(f"Loading from {g.cfgfile}", extra={'mod_name': 'olhc'})
@@ -124,7 +134,10 @@ o.state_wr("purch_qty", g.purch_qty)
 g.purch_qty_adj_pct = o.cvars.get("purch_qty_adj_pct")
 g.dbc, g.cursor = o.getdbconn()
 
-if o.cvars.get("datatype") == "live":
+datatype =o.cvars.get("datatype")
+
+print(f"---{datatype}")
+if datatype == "live":
     g.interval = 300000
 else:
     if not o.cvars.get("offline"):
@@ -307,17 +320,17 @@ def working(k):
             # * reinstantiate connections in case of timeout
             g.ticker_src = ccxt.binance()
             g.spot_src = ccxt.coinbase()
-            ohlc = o.get_ohlc(g.ticker_src, g.spot_src, since=t.since)
-            retry = retry + 1
+            g.ohlc = o.get_ohlc(g.ticker_src, g.spot_src, since=t.since)
+            retry = 10
             expass = True
-        except BinanceAPIException as e:
+        except Exception as e:
             print(e)
-            print('Something went wrong. Error occured at %s. Wait for 1 minute.' % (datetime.datetime.now().astimezone(timezone('UTC'))))
+            print(f'Something went wrong. Error occured at {datetime.datetime.now()}. Wait for 1 minute.')
             time.sleep(60)
             retry = retry + 1
             expass = False
             # continue
-
+    ohlc = g.ohlc
     # ! ───────────────────────────────────────────────────────────────────────────────────────
     # ! CHECK THE SIZE OF THE DATAFRAME and Gracefully exit on error or command
     # ! ───────────────────────────────────────────────────────────────────────────────────────

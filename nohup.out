@@ -1,0 +1,9 @@
+
+    Missing colname or input_filename... examples
+        ./liveview.py -f _ohlcdata.json -c Close &
+        ./liveview.py -f state_0.json -c pct_record_list &
+
+        ./liveview.py -f state_0.json -c running_tot &
+        ./liveview.py -f state_0.json -c pnl_record_list &
+        ./liveview.py -f state_0.json -c pct_gain_list &
+    
