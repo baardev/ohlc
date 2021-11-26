@@ -19,10 +19,10 @@ cp data/*   $1/data   > /dev/null 2>&1
 
 
 if [ "$2" == "C" ]; then
-    echo "INCLUDING 'config_0.hcl'"
+    echo "INCLUDING 'config*.hcl'"
     cp *.hcl $1/
 else
-    echo "NOT INCLUDING 'config_0.hcl'"
+    echo "NOT INCLUDING 'config*.hcl'"
 fi
 
 cp ohlc.py            $1/
@@ -40,6 +40,8 @@ cp auth_client.py     $1/
 cp public_client.py   $1/
 
 cp view.py            $1/
+cp gview.py            $1/
+cp dbview.py            $1/
 cp merge.py           $1/
 cp liveview.py        $1/
 cp ohlc_backdata.py   $1/

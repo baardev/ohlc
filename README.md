@@ -199,15 +199,42 @@ https://code.visualstudio.com/docs/getstarted/keybindings
 
 ## ORG1
 `./config_ORG1.hcl` (juniper)
-`./config_ORG.hcl`  (orthodontist)
-
 - "datawindow":216 
 - "testpair":["BUY_CltLowBbavg", "SELL_HgtHiBbavg_ffmapLowCoA"]
 - maxbuys=10
+- "backtestfile":"2yr.json"
 
-10x improvement over same 'finicky' testpair, but with datawindow=28
+10x improvement over same 'orthodontist' ORG testpair, but with datawindow=28
+
+## ORG
+`./config_ORG.hcl`  (orthodontist)
+- "datawindow":28 
+- "testpair":["BUY_CltLowBbavg", "SELL_HgtHiBbavg_ffmapLowCoA"]
+- maxbuys=10
+- "backtestfile":"2yr.json"
 
 ## PROD
 `config_PROD.hcl`  (wastewater)
+- "datawindow":216
+- "testpair":["BUY_test","SELL_test"]
+- "backtestfile":"2yr.json"
 
+## PLIVE - live test locally
+`config_PLIVE.hcl`  (whelm)
+- "datawindow":216
+- "testpair":["BUY_CltLowBbavg", "SELL_HgtHiBbavg_ffmapLowCoA"]
 - maxbuy = 1
+- "backtestfile":"2yr.json"
+
+
+### Unimpressive results
+
+## ORG2
+`./config_ORG1.hcl` (juniper)
+- "datawindow":216 
+- "testpair":["BUY_CltLowBbavg", "SELL_HgtHiBbavg_ffmapLowCoA"]
+- maxbuys=1
+- "backtestfile":"2yr.json"
+
+After hundread of transactions, still negatibe, but did nto implement the limit-sell options
+

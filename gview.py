@@ -10,19 +10,24 @@ import lib_panzoom as c
 
 argv = sys.argv[1:]
 try:
-    opts, args = getopt.getopt(argv, "-hf:", ["help","file="])
+    opts, args = getopt.getopt(argv, "-hf:c:", ["help","file=","chart="])
 except getopt.GetoptError as err:
     sys.exit(2)
 
-input_filename = "_allrecords_0.json" #False
+chart = "bb3Delta"
+
+input_filename = "_allrecords_0.csv" #False
 
 for opt, arg in opts:
     if opt in ("-h", "--help"):
         print("-h, --help   this info")
         print("-f, --file   read from last data file")
+        print("-c, --chart  'bb3Delta', 'bb3Close'")
         print("-t, --tabloo   use tabloo (def: pandasgui)")
         sys.exit(0)
 
+    if opt in ("-c", "--chart"):
+        chart = arg
     if opt in ("-f", "--file"):
         input_filename = arg
     else:
@@ -32,11 +37,10 @@ if not input_filename:
     print("Missing -f <input_filename>")
     exit(1)
 
-
-
 print(f"Loading from {input_filename}")
 
-df = pd.read_json(input_filename, orient='split', compression='infer')
+df = pd.read_csv(input_filename, sep='\t', lineterminator='\n')
+# df = pd.read_json(input_filename, orient='split', compression='infer')
 df.index = pd.DatetimeIndex(df['Timestamp'])
 
 
@@ -47,32 +51,53 @@ ax = fig.get_axes()
 
 multi = MultiCursor(fig.canvas, ax, color='r', lw=1, horizOn=True, vertOn=True)
 
-fs = ["Close","bbl0","bbl1","bbl2","bbh0","bbh1","bbh2"]
-amin = 1000000
-amax = -1000000
-for f in fs:
-    amin = min(amin, df[f].min())
-    amax = max(amax, df[f].max())
+if chart == "bb3Close":
 
-ax[0].set_ylim(amin, amax)
-# ax[0].set_ylim(df['Close'].min(),df['Close'].max(),)
+    fs = ["Close", "bbl0", "bbl1", "bbl2", "bbh0", "bbh1", "bbh2"]
+    amin = 1000000
+    amax = -1000000
+    for f in fs:
+        amin = min(amin, df[f].min())
+        amax = max(amax, df[f].max())
 
+    ax[0].set_ylim(amin, amax)
+    # ax[0].set_ylim(df['Close'].min(),df['Close'].max(),)
 
-close_plot = mpf.make_addplot(df['Close'],ax=ax[0],type="line",color="blue",width=1, alpha=1)
+    close_plot = mpf.make_addplot(df['Close'], ax=ax[0], type="line", color="blue", width=1, alpha=1)
 
-bbl0 = mpf.make_addplot(df['bbl0'],ax=ax[0],type="line",color="red",width=1, alpha=0.5)
-bbl1 = mpf.make_addplot(df['bbl1'],ax=ax[0],type="line",color="green",width=1, alpha=0.5)
-bbl2 = mpf.make_addplot(df['bbl2'],ax=ax[0],type="line",color="blue",width=1, alpha=0.5)
+    bbl0 = mpf.make_addplot(df['bbl0'], ax=ax[0], type="line", color="red", width=1, alpha=0.5)
+    bbl1 = mpf.make_addplot(df['bbl1'], ax=ax[0], type="line", color="green", width=1, alpha=0.5)
+    bbl2 = mpf.make_addplot(df['bbl2'], ax=ax[0], type="line", color="blue", width=1, alpha=0.5)
 
-bbh0 = mpf.make_addplot(df['bbh0'],ax=ax[0],type="line",color="red",width=1, alpha=0.5)
-bbh1 = mpf.make_addplot(df['bbh1'],ax=ax[0],type="line",color="green",width=1, alpha=0.5)
-bbh2 = mpf.make_addplot(df['bbh2'],ax=ax[0],type="line",color="blue",width=1, alpha=0.5)
+    bbh0 = mpf.make_addplot(df['bbh0'], ax=ax[0], type="line", color="red", width=1, alpha=0.5)
+    bbh1 = mpf.make_addplot(df['bbh1'], ax=ax[0], type="line", color="green", width=1, alpha=0.5)
+    bbh2 = mpf.make_addplot(df['bbh2'], ax=ax[0], type="line", color="blue", width=1, alpha=0.5)
 
-p1 = mpf.make_addplot(df['bb3avg_buy'], ax=ax[0], scatter=True, color="red", markersize=100, alpha=1, marker=6)  # + ^
-p2 = mpf.make_addplot(df['bb3avg_sell'], ax=ax[0], scatter=True, color="green", markersize=100, alpha=1, marker=7)  # + v
+    p1 = mpf.make_addplot(df['bb3avg_buy'], ax=ax[0], scatter=True, color="red", markersize=100, alpha=1,
+                          marker=6)  # + ^
+    p2 = mpf.make_addplot(df['bb3avg_sell'], ax=ax[0], scatter=True, color="green", markersize=100, alpha=1,
+                          marker=7)  # + v
 
-plots = [close_plot, p1,p2, bbl0, bbl1, bbl2, bbh0, bbh1, bbh2]
-mpf.plot(df, type="line", ax=ax[0], addplot=plots, returnfig=True)
-mpf.show()
+    plots = [close_plot, p1, p2, bbl0, bbl1, bbl2, bbh0, bbh1, bbh2]
+    mpf.plot(df, type="line", ax=ax[0], addplot=plots, returnfig=True)
+    mpf.show()
+
+if chart == "bb3Delta":
+
+    fs = ["bbDelta"]
+    amin = 1000000
+    amax = -1000000
+    for f in fs:
+        amin = min(amin, df[f].min())
+        amax = max(amax, df[f].max())
+
+    ax[0].set_ylim(amin, amax)
+    # ax[0].set_ylim(df['Close'].min(),df['Close'].max(),)
+
+    bbDelta  = mpf.make_addplot(df['bbDelta'], ax=ax[0], type="line", color="red", width=1, alpha=0.5)
+
+    plots = [bbDelta]
+    mpf.plot(df, type="line", ax=ax[0], addplot=plots, returnfig=True)
+    mpf.show()
 
 # plots = o.add_plots(plots,close_plot)

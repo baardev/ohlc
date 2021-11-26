@@ -23,19 +23,22 @@ for opt, arg in opts:
         ndir = arg
 
 import lib_ohlc as o
-print(f"IN DIRECTIRY:: {ndir}")
 
-ndir = f"/home/jw/src/jmcap/{ndir}"
+fndir = f"/home/jw/src/jmcap/{ndir}"
+print(f"IN DIRECTIRY:: {fndir}")
 
-print(f"deleting {ndir}")
-os.system(f"rm -rf {ndir}")
+print(f"deleting {fndir}")
+os.system(f"rm -rf {fndir}")
 
-print(f"mkdir {ndir}")
-os.makedirs(ndir, exist_ok=True)
-os.system(f"./mkLIVE {ndir} C")
+print(f"mkdir {fndir}")
+os.makedirs(fndir, exist_ok=True)
+os.system(f"./mkLIVE {fndir} C")
 
-# cmd = f'terminator -e > /dev/null 2>&1 "cd {ndir} && ./CLEANRUN -c -b"'
-cmd = f'terminator -e > /dev/null 2>&1 "cd {ndir} && /bin/bash"'
+os.system(f"cp config_{ndir}.hcl {fndir}/config_0.hcl")
+
+
+# cmd = f'terminator -e > /dev/null 2>&1 "cd {fndir} && ./CLEANRUN -c -b"'
+cmd = f'terminator -e > /dev/null 2>&1 "cd {fndir} && /bin/zsh"'
 print(cmd)
 print("------------------------------------------------------")
 os.system(cmd)

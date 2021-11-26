@@ -1,3 +1,4 @@
+datafile = False
 datasetname = "noname"
 datawindow = False
 verbose = False
@@ -77,16 +78,12 @@ recover = False
 cooldown = 0
 last_close = 0
 this_close = 0
-running_total=0
 bsuid = 0
 uid = 0
 needs_reload = False
 startdate = "1970-01-01 00:00:00"
 current_close = 0
-lblow = None
-covercost = 0 #! JWFIX same?
-est_buy_fee=0
-est_sell_fee=0
+covercost = 0
 
 # ! these are the only fields allowed for the coinbase order(s), as determined by 'cb_order.py'
 cflds = {

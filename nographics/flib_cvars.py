@@ -2,8 +2,8 @@ import json
 import hashlib
 import pandas as pd
 import re
-import lib_globals as g
-import lib_ohlc as o
+import flib_globals as g
+import flib_ohlc as o
 
 # + -------------------------------------------------------------
 # + CLASSES

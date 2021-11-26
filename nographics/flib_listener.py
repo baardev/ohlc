@@ -30,14 +30,14 @@ def on_press(key):
         current.add(key)
         if all(k in current for k in UP_COMBO):
             g.interval = g.interval + 500
-            print(f"Pausing: {int(g.interval/100)/10} sec...   ",end="\r")
+            print(f"Pausing: {int(g.interval/100)/10} sec       ",end="\r")
 
     if key in DN_COMBO:
         current.add(key)
         if all(k in current for k in DN_COMBO):
             g.interval = g.interval - 500
             g.interval = 0.001 if g.interval <= 0 else g.interval
-            print(f"Pausing: {int(g.interval/100)/10} sec...   ",end="\r")
+            print(f"Pausing: {int(g.interval/100)/10} sec       ",end="\r")
 
     if key in KILL_COMBO:
         current.add(key)

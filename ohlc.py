@@ -1,14 +1,17 @@
 #!/usr/bin/python3.9
+import uuid
+
 import matplotlib
 # matplotlib.use('agg') #   non-GUI backend
-matplotlib.use("Qt5agg")
-import PyQt5
-# ! other matplotplib GUI options
 # matplotlib.use("Qt5agg")
+# ! other matplotplib GUI options
+matplotlib.use("Qt5agg")
+# import PyQt5
 # matplotlib.use('Tkagg')
 # from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 # from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 
+import gc
 import ccxt
 import sys
 import getopt
@@ -30,14 +33,23 @@ from pathlib import Path
 from colorama import init
 from colorama import Fore, Back, Style
 import datetime
+import importlib
+
+# import types
+# from pympler.tracker import SummaryTracker, muppy
+# from pympler import summary
+# tracker = SummaryTracker()
+
 init()
 # + ≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
 argv = sys.argv[1:]
 interval_pause = False
+os.system("echo '' > logs/ps")
+
 # g.cfgfile = "config_0.hcl"
 
 try:
-    opts, args = getopt.getopt(argv, "-hi:bcp:j:", ["help", "instance", "batch", "clear", "pause=","json="])
+    opts, args = getopt.getopt(argv, "-hi:bcrp:j:", ["help", "instance", "batch", "clear", "recover", "pause=","json="])
 except getopt.GetoptError as err:
     sys.exit(2)
 
@@ -46,6 +58,7 @@ for opt, arg in opts:
         print("-i, --instance   instance number")
         print("-b, --batch  batchmode")
         print("-c, --clear  auto clear")
+        print("-r, --recover  ")
         print("-j, --json  alt json cfg file")
         print("-p, --pause  interval pause")
         sys.exit(0)
@@ -63,12 +76,15 @@ for opt, arg in opts:
         g.batchmode = True
     if opt in ("-c", "--clear"):
         g.autoclear = True
+    if opt in ("-r", "--recover"):
+        g.recover = True
     if opt in ("-p", "--pause"):
         interval_pause = int(arg)
 # + ≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
 print(f"cfgfile: {g.cfgfile}")
 print(f"TEST: {o.cvars.get('thisfile')}")
 g.time_start = time.time()
+g.dbc, g.cursor = o.getdbconn()
 
 g.logit = logging
 g.logit.basicConfig(
@@ -85,32 +101,41 @@ stdout_handler = g.logit.StreamHandler(sys.stdout)
 # * Did we exit gracefully from the last time?
 
 g.startdate = o.cvars.get('startdate')
+# * we get lastdate here, but only use if in recovery
 
 if g.autoclear: #* automatically clear all (-c)
     o.clearstate()
     o.state_wr('isnewrun',True)
     g.gcounter = 0
 else:
-    if o.waitfor(["Clear Last Data? (y/N)"]): # * ask user, default to 'N'
-        o.clearstate()
-        o.state_wr('isnewrun',True)
-    else:                                     # * reload old data
+    if g.recover:  # * automatically recover from saved data (-r)
         o.state_wr('isnewrun', False)
         o.loadstate()
         g.needs_reload = True
+        g.gcounter = o.state_r("gcounter")
+        g.session_name = o.state_r("session_name")
+        lastdate = o.sqlex(f"select order_time from orders where session = '{g.session_name}' order by id desc limit 1",ret="one")[0]
+        g.startdate = f"{lastdate}"
 
-    g.gcounter = o.state_r("gcounter")
+    else:
+        if o.waitfor(["Clear Last Data? (y/N)"]): # * True if 'y', defaults to 'N'
+            o.clearstate()
+            o.state_wr('isnewrun',True)
+        else:                                     # * reload old data
+            o.state_wr('isnewrun', False)
+            o.loadstate()
+            g.needs_reload = True
+            g.gcounter = o.state_r("gcounter")
+            g.session_name = o.state_r("session_name")
+            lastdate = o.sqlex(f"select order_time from orders where session = '{g.session_name}' order by id desc limit 1",ret="one")[0]
+            g.startdate = lastdate
 
 if o.cvars.get("datatype") == "live":
     o.waitfor(f"!!! RUNNING ON LIVE / {o.cvars.get('datatype')} !!!")
 
 g.logit.info(f"Loading from {g.cfgfile}", extra={'mod_name': 'olhc'})
 
-if not o.state_r('isnewrun'):
-    g.session_name = o.get_a_word()
-    g.session_name = o.state_r("session_name")
-else:
-    g.session_name = o.get_a_word()
+if o.state_r('isnewrun'):
     o.state_wr("session_name",g.session_name)
 
 o.cvars.prev_md5 = o.cvars.this_md5
@@ -129,10 +154,10 @@ g.purch_pct =  o.cvars.get("purch_pct")/100
 
 g.purch_qty = g.capital * g.purch_pct
 
-
+g.bsuid = 0
+# g.uid=uuid.uuid4().hex
 o.state_wr("purch_qty", g.purch_qty)
 g.purch_qty_adj_pct = o.cvars.get("purch_qty_adj_pct")
-g.dbc, g.cursor = o.getdbconn()
 
 datatype =o.cvars.get("datatype")
 
@@ -151,7 +176,7 @@ if interval_pause:
     g.interval = interval_pause
 
 # * create the global buy/sell and all_records dataframes
-g.df_allrecords = pd.DataFrame()
+# g.df_allrecords = pd.DataFrame()
 g.df_buysell = pd.DataFrame(index=range(g.datawindow),
                             columns=['Timestamp', 'buy', 'sell', 'qty', 'subtot', 'tot', 'pnl', 'pct'])
 g.cwd = os.getcwd().split("/")[-1:][0]
@@ -227,7 +252,17 @@ print(f"Loop interval set at {g.interval}ms ({g.interval/1000}s)                
 #   canvas = FigureCanvasTkAgg(fig) #   keeps crosshairs, but stop moving
 #   canvas.mpl_connect('motion_notify_event', o.mouse_move)
 #   canvas.mpl_connect('key_press_event', o.keypress)
+
+# all_objects = muppy.get_objects()
+# sum1 = summary.summarize(all_objects)
+# summary.print_(sum1)
+# o.waitfor()
+
 def animate(k):
+    # importlib.reload(o) # as o
+
+    o.cvars = o.Cvars(g.cfgfile)
+
     this_logger = g.logit.getLogger()
     if g.verbose:
         this_logger.addHandler(stdout_handler)
@@ -257,11 +292,6 @@ def working(k):
     o.state_wr('gcounter',g.gcounter)
     #   num_axes = len(ax)
     g.prev_md5 = o.cvars.this_md5
-    o.cvars = o.Cvars(g.cfgfile)
-
-    # g.purch_qty = g.capital * g.purch_pct
-
-
 
     if o.cvars.get("datatype") == "backtest":
         g.datasetname = o.cvars.get("backtestfile")
@@ -324,13 +354,15 @@ def working(k):
             retry = 10
             expass = True
         except Exception as e:
-            print(e)
+            print(f"Exception error: [{e}]")
             print(f'Something went wrong. Error occured at {datetime.datetime.now()}. Wait for 1 minute.')
             time.sleep(60)
             retry = retry + 1
             expass = False
             # continue
     ohlc = g.ohlc
+
+
     # ! ───────────────────────────────────────────────────────────────────────────────────────
     # ! CHECK THE SIZE OF THE DATAFRAME and Gracefully exit on error or command
     # ! ───────────────────────────────────────────────────────────────────────────────────────
@@ -356,6 +388,7 @@ def working(k):
     ax_patches[0] = o.updateLegend(ax_patches, 0)
     ax_patches[0].append(mpatches.Patch(color='k', label="OHLC"))
 
+
     # + ───────────────────────────────────────────────────────────────────────────────────────
     # + make OHLCV df and the default candles plot, and colored volumes
     # + ───────────────────────────────────────────────────────────────────────────────────────
@@ -364,6 +397,7 @@ def working(k):
         adx = o.cvars.get('loc_ohlc')
         if adx < g.num_axes:  # checks for 2 columns (6 axes) or 1 column (3 axes)
             plots = [mpf.make_addplot(ohlc, ax=ax[adx], type="candle")]
+
     if o.cvars.get("plots_volume"):
         adx = o.cvars.get('loc_plots_volume')
         if adx < g.num_axes:
@@ -382,6 +416,15 @@ def working(k):
     # * CREATE ADDITIONAL PLOTS AND ADD TO PLOTS ARRAY
     # * ───────────────────────────────────────────────────────────────────────────────────────
     o.make_steppers(ohlc)  # * fill the stepper data
+
+    # * set trigger boundry for lookback
+    # ohlc['lblow'] = ohlc['Close'][-3] * 0.995
+    ohlc['lblow'] = ohlc['Close'].shift(3).ewm(span=12).mean() *.995
+
+    # plots = o.plots_lookback(ohlc, plots=plots, ax=ax[0], patches=ax_patches[0])
+    # plots = o.plots_hilo(ohlc, plots=plots, ax=ax[adx], patches=ax_patches[adx])
+    # g.lblow = ohlc['Close'][-3]*0.995
+    # ax[0].axhline(y=lblow, color="red", linewidth=1, alpha=1)
 
     # + ───────────────────────────────────────────────────────────────────────────────────────
     # + "plots_mav" makes moving aveage lines
@@ -418,12 +461,21 @@ def working(k):
     if o.cvars.get("plots_sigffmb"):
         adx = o.cvars.get("loc_plots_sigffmb")
         if adx < g.num_axes:
+            # o.plots_sigffmb(ohlc, plots=plots, ax=ax[adx], patches=ax_patches[adx])
             plots = o.plots_sigffmb(ohlc, plots=plots, ax=ax[adx], patches=ax_patches[adx])
 
     if o.cvars.get("plots_sigffmb2"):
         adx = o.cvars.get("loc_plots_sigffmb2")
         if adx < g.num_axes:
+            # o.plots_sigffmb2(ohlc, plots=plots, ax=ax[adx], patches=ax_patches[adx])
             plots = o.plots_sigffmb2(ohlc, plots=plots, ax=ax[adx], patches=ax_patches[adx])
+
+    if o.cvars.get("plots_ffmaps"):
+        adx = o.cvars.get("loc_plots_ffmaps")
+        if adx < g.num_axes:
+            plots = o.plots_ffmaps(ohlc, plots=plots, ax=ax[adx], patches=ax_patches[adx])
+
+
 
     if o.cvars.get("plots_sigff"):
         adx = o.cvars.get("loc_plots_sigff")
@@ -498,6 +550,13 @@ def working(k):
         if adx < g.num_axes:
             plots = o.plots_opcldelta(ohlc, plots=plots, ax=ax[adx], patches=ax_patches[adx])
     # + ───────────────────────────────────────────────────────────────────────────────────────
+    # + "bbDelta" plots the difference between the HI( and LO of the bb3 avg
+    # + ───────────────────────────────────────────────────────────────────────────────────────
+    if o.cvars.get("plots_bbDelta"):
+        adx = o.cvars.get('loc_plots_bbDelta')
+        if adx < g.num_axes:
+            plots = o.plots_bbDelta(ohlc, plots=plots, ax=ax[adx], patches=ax_patches[adx])
+    # + ───────────────────────────────────────────────────────────────────────────────────────
     # + "deltadelta" plots the difference between the HIGH/LOW and OPEN/CLOSE deltas
     # + ONLY if that data has been created
     # + ───────────────────────────────────────────────────────────────────────────────────────
@@ -527,6 +586,19 @@ def working(k):
         if adx_macd < g.num_axes:
             plots = o.plots_macd(ohlc, plots=plots, ax=ax[adx_macd], patches=ax_patches[adx_macd])
 
+            # tmp = g.df_buysell.iloc[::-1]
+            # tmp = tmp.head(len(ohlc.index))
+            #
+            # # print(len(ohlc.index), len(tmp.index))
+            #
+            # buylines = tmp[["Timestamp","buy"]]
+            # buylines['marker'].fillna(None)
+            # # print(buylines.info())
+            #
+            #
+            # p1 = mpf.make_addplot(buylines['buy'], ax=ax[adx_ema],scatter=True, color="red", markersize=100, alpha=1, marker=6)  # + ^
+            # # p2 = mpf.make_addplot(selllines['sell'], ax=ax[adx_ema], scatter=True, color="green", markersize=100, alpha=1, marker=7)  # + v
+            # plots = o.add_plots(plots,[p1])
     # + ───────────────────────────────────────────────────────────────────────────────────────
     # + The following plots are experimental, useless, or broken
     # + ───────────────────────────────────────────────────────────────────────────────────────
@@ -539,6 +611,17 @@ def working(k):
         adx = o.cvars.get("loc_plots_overunder")
         if adx < g.num_axes:
             plots = o.plots_overunder(ohlc, plots=plots, ax=ax[adx], patches=ax_patches[adx])
+
+
+
+
+    #
+    # bbdelta = ohlc['bbDelta'][-1]
+    # # print(bbdelta)
+    # if bbdelta > 15:
+    #     ax[1].set_facecolor("#ddffdd")
+    # else:
+    #     ax[1].set_facecolor("#ffffff")
 
     # + ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
     # + ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓    TRIGGERS    ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
@@ -599,15 +682,41 @@ def working(k):
 
     # ! JWFIX need to have a flag to indicate of ANY pausing is on, and/or diff var as using g.interval causes a 2x load time
 
-    # plt.ion()
-    # plt.gcf().canvas.start_event_loop(g.interval / 1000)
+    plt.ion()
+    plt.gcf().canvas.start_event_loop(g.interval / 1000)
 
     #* save every transaction
-    g.df_allrecords = g.df_allrecords.append(ohlc.tail(1),ignore_index=True)
+    if g.gcounter == 1:
+        header = True
+        mode = "w"
+    else:
+        header = False
+        mode = "a"
 
+    # g.df_allrecords = g.df_allrecords.append(ohlc.tail(1),ignore_index=True)
+    ohlc.tail(1).to_csv(f"_allrecords_{g.instance_num}.csv",header=header,mode=mode,sep='\t', encoding='utf-8')
+
+    try:
+        adf = pd.read_csv(f'_allrecords_{g.instance_num}.csv')
+        fn = f"_allrecords_{g.instance_num}.json"
+        g.logit.debug(f"Save {fn}")
+        o.cvars.save(adf, fn)
+        del afn
+    except:
+        pass
 
     g.needs_reload = False # * we've reloade from last run after first iteration, so turn off reload flag
 
+    del ohlc
+    del g.ohlc
+    gc.collect()
+
+    os.system("ps -A --sort -rss -o pid,comm,pmem,rss|grep ohlc >> logs/ps")
+
+    # sum2 = summary.summarize(muppy.get_objects())
+    # diff = summary.get_diff(sum1, sum2)
+    # summary.print_(diff)
+
 #   frames=<n>, n is completely arbitrary
-ani = animation.FuncAnimation(fig=fig, func=animate, frames=1086400, interval=g.interval, repeat=True)
+ani = animation.FuncAnimation(fig=fig, func=animate, frames=1086400, interval=g.interval, repeat=False)
 mpf.show()

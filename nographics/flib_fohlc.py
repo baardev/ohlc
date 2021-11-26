@@ -10,17 +10,13 @@ import numpy as np
 import pandas as pd
 import pandas_ta as ta
 import talib as talib
-from lib_cvars import Cvars  # ! used in ohlc.py, not here
-import mplfinance as mpf
-import matplotlib.patches as mpatches
+from flib_cvars import Cvars  # ! used in ohlc.py, not here
 import MySQLdb as mdb
 import math
 import datetime as dt
-# from lib_tests_class import Tests
-import lib_tests_class
-from datetime import datetime, timedelta
+from flib_tests_class import Tests
 import csv
-import lib_globals as g
+import flib_globals as g
 from shutil import copyfile
 import subprocess
 from subprocess import Popen
@@ -28,8 +24,6 @@ from colorama import Fore, Back, Style  # ! https://pypi.org/project/colorama/
 import traceback
 from scipy import signal
 import time
-import importlib
-
 
 extra = {'mod_name': 'lib_olhc'}
 
@@ -125,8 +119,6 @@ def update_db(tord):
         if tord['side'] == "buy":
             credits = credits * -1
         cmd = f"UPDATE orders SET credits = {credits} where uid='{uid}' and session = '{g.session_name}'"
-        sqlex(cmd)
-        cmd = f"UPDATE orders SET netcredits = credits-fees where uid='{uid}' and session = '{g.session_name}'"
         sqlex(cmd)
 
 
@@ -349,8 +341,7 @@ def get_running_bal(**kwargs):
 
     # * get the last runtotnet (rename? as ths is GROSS , not NET? - JWFIX)
     if version == 2:
-        # profit = sqlex(f"SELECT t.runtotnet as profit FROM (select * from orders where side='sell' and session = '{sname}') as t order by id desc limit 1", ret=ret)[0]
-        profit = sqlex(f"SELECT sum(netcredits) as profit FROM orders where session='{sname}'", ret=ret)[0]
+        profit = sqlex(f"SELECT t.runtotnet as profit FROM (select * from orders where side='sell' and session = '{sname}') as t order by id desc limit 1", ret=ret)[0]
         return profit
 
     if version == 3:
@@ -391,16 +382,11 @@ def clearstate():
     state_wr("tot_sells", 0)
     state_wr("max_qty", 0)
     state_wr("first_buy_price", 0)
-    state_wr("last_buy_price", 1e+10)
+    state_wr("last_buy_price", 0)
 
     state_wr("largest_run_count", 0)
     state_wr("last_run_count", 0)
     state_wr("current_run_count", 0)
-    state_wr("pnl_running", 0)
-    state_wr("pct_running", 0)
-    state_wr("order", {})
-    state_wr("last_sell_price", 0)
-    state_wr("last_avg_price", 0)
 
     state_wr("curr_qty", 0)
     state_wr("delta_days", 0)
@@ -697,22 +683,22 @@ def waitfor(data=["Here Now"], ext=False, **kwargs):
     except:
         pass  # + * not overridden to just contiue
     # + with open('_tmp', 'w') as outfile:  # + * saves the data sent in as rarg to a JSON file (why??)
-    # ! sdata = json.dumps(data)
+    sdata = json.dumps(data)
     # + with open('_tmp', 'r') as file:    # + * then read it in again!!??
     # + sdata = file.read()
 
     if stop_at:
         print("waiting...\n")
         # + x=input(sdata)
-        x = input()
+        x = input(sdata)
         if x == "x":
             exit()
         if x == "n":
             return False
         if x == "y":
             return True
-    # else:
-    #     print(sdata)
+    else:
+        print(sdata)
 
 
 def add_plots(target, source):  # * lists
@@ -780,51 +766,58 @@ def days_between(d1, d2):
 
 
 def make_title(**kwargs):
+    atype = kwargs['type']
     pair = kwargs['pair']
     timeframe = kwargs['timeframe']
+    count = kwargs['count']
+    exchange = kwargs['exchange']
+    fromdate = kwargs['fromdate']
+    todate = kwargs['todate']
     livect = f"({g.gcounter}/{cvars.get('datalength')})"
 
-    # ft = f"{g.current_close:6.2f} INS=?"
-    ft = f"{g.current_close:6.2f} INS={g.instance_num}/{g.session_name} "
+    ft = f"{g.current_close:6.2f} INS=?"
 
-    # # + BACkTEST
-    # if cvars.get("datatype") == "backtest":
-    #     metadatafile = f"{cvars.get('datadir')}/{cvars.get('backtestmeta')}"
-    #     metadata = cvars.cload(metadatafile)
-    #     # + atype = metadata['type']
-    #     atype = g.datasetname
-    #     pair = metadata['pair']
-    #     timeframe = metadata['t_frame']
-    #     # + fromdate = metadata['fromdate']
-    #     fromdate = state_r("from")
-    #     # + todate = metadata['todate']
-    #     todate = state_r("to")
-    #
-    #     deltadays = days_between(fromdate.replace("_", " "), todate)
-    #     state_wr("delta_days", f"{deltadays}")
-    #     ft = f"{g.current_close:6.2f} INS={g.instance_num}/{g.session_name} ({deltadays})[{atype}] {pair} {timeframe} {livect} FROM:{fromdate}  TO:{todate}"
-    #
-    # # + LIVE
-    # if cvars.get("datatype") == "live":
-    #     atype = "LIVE"
-    #     count = "N/A"
-    #     exchange = "Binance"
-    #     fromdate = "Ticker"
-    #     todate = "Live"
-    #     deltadays = days_between(fromdate, todate)
-    #
-    #     ft = f"{g.current_close:6.2f} INS={g.instance_num}/{g.session_name} ({deltadays})[{atype}] {pair} {timeframe} FROM:{fromdate}  TO:{todate}"
-    #
-    # # + RANDOM
-    # if cvars.get("datatype") == "random":
-    #     atype = "Random"
-    #     count = "N/A"
-    #     exchange = "N/A"
-    #     fromdate = "N/A"
-    #     todate = "N/A"
-    #     deltadays = days_between(fromdate, todate)
-    #
-    #     ft = f"{g.current_close:6.2f} INS={g.instance_num}/{g.session_name} {livect} pts:{count}"
+    # + BACkTEST
+    if cvars.get("datatype") == "backtest":
+        metadatafile = f""
+        metadatafile = f"{cvars.get('datadir')}/{cvars.get('backtestmeta')}"
+        metadata = cvars.cload(metadatafile)
+        # + atype = metadata['type']
+        atype = g.datasetname
+        pair = metadata['pair']
+        timeframe = metadata['t_frame']
+        count = metadata['count']
+        exchange = metadata['exchange']
+        # + fromdate = metadata['fromdate']
+        fromdate = state_r("from")
+        # + todate = metadata['todate']
+        todate = state_r("to")
+
+        deltadays = days_between(fromdate.replace("_", " "), todate)
+        state_wr("delta_days", f"{deltadays}")
+        ft = f"{g.current_close:6.2f} INS={g.instance_num}/{g.session_name} ({deltadays})[{atype}] {pair} {timeframe} {livect} FROM:{fromdate}  TO:{todate}"
+
+    # + LIVE
+    if cvars.get("datatype") == "live":
+        atype = "LIVE"
+        count = "N/A"
+        exchange = "Binance"
+        fromdate = "Ticker"
+        todate = "Live"
+        deltadays = days_between(fromdate, todate)
+
+        ft = f"{g.current_close:6.2f} INS={g.instance_num}/{g.session_name} ({deltadays})[{atype}] {pair} {timeframe} FROM:{fromdate}  TO:{todate}"
+
+    # + RANDOM
+    if cvars.get("datatype") == "random":
+        atype = "Random"
+        count = "N/A"
+        exchange = "N/A"
+        fromdate = "N/A"
+        todate = "N/A"
+        deltadays = days_between(fromdate, todate)
+
+        ft = f"{g.current_close:6.2f} INS={g.instance_num}/{g.session_name} {livect} pts:{count}"
 
     # + g.subtot_cost, g.subtot_qty, g.avg_price = itemgetter(0, 1, 2)(list_avg(state_r('open_buys'),state_r('qty_holding')))
     # + g.subtot_qty = trunc(g.subtot_qty)
@@ -833,7 +826,7 @@ def make_title(**kwargs):
     g.pnl_running = truncate(state_r('pnl_running'), 5)
     g.pct_running = truncate(state_r('pct_running'), 5)
 
-    rpt = f" {g.subtot_qty:8.2f} @ ${g.subtot_cost:8.2f}  ${g.running_total:6.2f}"
+    rpt = f" {g.subtot_qty} @ ${g.subtot_cost} !! ${g.pnl_running} /xx {g.pct_running}% "
 
     ft = f"{ft} !! {rpt}"
     return ft
@@ -1023,9 +1016,7 @@ def make_steppers(df):
 
 
 
-def add_bolbands(ohlc, **kwargs):
-    ax = kwargs['ax']
-
+def add_bolbands(ohlc):
     bb = []
     bblengths = cvars.get("bblengths")
     bbc = len(bblengths)  # + how many BB windows will we average?
@@ -1065,8 +1056,6 @@ def add_bolbands(ohlc, **kwargs):
         ohlc[f'bbl{i}'] = bb[i][f'BBL_{bblengths[i]}_{bbstd[i]}']  # + .bollinger_lband_indicator()
         # + can't fill in mplfinance subplots :(
         # + ax.fill_between(ohlc['Date'], ohlc[f"bbh{i}"], ohlc[f"bbl{i}"])
-
-    return ohlc
 
 
 def add_2_bolbands(ohlc, **kwargs):
@@ -1253,9 +1242,6 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
         df = pd.DataFrame(data)
         df.set_index("Timestamp")
 
-        # * add some precalced data
-        df['EMAlong'] = ta.ema(df['Close'],cvars.get('EMAxlong'))
-
         seed = cvars.get("seed")
         mu = cvars.get("mu")
         sigma = cvars.get("sigma")
@@ -1291,7 +1277,6 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
 
         df = pd.DataFrame(ohlcv, columns=['Timestamp', 'Open', 'High', 'Low', 'Close', 'Volume'])
         df['orgClose'] = df['Close']
-        df['EMAlong'] = ta.ema(df['Close'],cvars.get('EMAxlong'))
         df["Date"] = pd.to_datetime(df.Timestamp, unit='ms')
         df.index = pd.DatetimeIndex(df['Timestamp'])
         ohlc = df.loc[:, ['Timestamp', 'Open', 'High', 'Low', 'Close', 'Volume', 'orgClose']]
@@ -1317,32 +1302,8 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
             # print("old/new start time:", old_start_time, new_start_time)
             # date_mask = (df['Timestamp'] > new_start_time)
 
-
-    #! if teh last row must be the start_date, and there are 108 rows, and each row reps 5min...
-    #! that teh ephc for teh last row is start_date+(108*5)m, so to make teh last row match the
-    #! start_date, start_date must be start_date-(108*5)m which 540m, 32400s
-
-
-            secs = 54000  #(cvars.get('datawindow')*2)*5
-            # secs = 32400 + (300*(12*6)) #(cvars.get('datawindow')*2)*5
-            # secs = 54000
-            #! 32400 = 108*5*60    DATAWIN
-            #! 129600 = 300*12*6
-            # print(g.gcounter)
-            # epoch = datetime.strptime(g.startdate, '%Y-%m-%d %H:%M:%S')
-            epoch = (datetime.strptime(g.startdate, '%Y-%m-%d %H:%M:%S') - datetime(1970, 1, 1)).total_seconds()
-#             print(secs,epoch)
-#             exit()
-            adj_startdate = datetime.fromtimestamp(epoch-secs)
-            # adj_startdate = datetime.fromtimestamp(epoch+secs)
-
-            # print(f"startdate: {g.startdate} -> adj_dtartdate: {adj_startdate} -> ")
-
-# 2020-01-02 1577923200 1577988300
-
             # * apply date filer
-            # date_mask = (df['Timestamp'] > g.startdate)
-            date_mask = (df['Timestamp'] > adj_startdate)
+            date_mask = (df['Timestamp'] > g.startdate)
             df = df.loc[date_mask]
 
         df["Date"] = pd.to_datetime(df['Timestamp'], unit='ms')
@@ -1350,8 +1311,6 @@ def get_ohlc(ticker_src, spot_src, **kwargs):
 
         _start = (g.datawindow) + g.gcounter
         _end = _start + (g.datawindow)
-        # _start = (g.datawindow) + g.gcounter%3
-        # _end = _start + (g.datawindow)
 
         ohlc = df.iloc[_start:_end]
 
@@ -1415,35 +1374,6 @@ def get_opcldelta(df, **kwargs):
     # + amax=df['Close'].max()
     df['opcldelta'] = normalize_col(df.opcldelta, amin, amax)
 
-    opcldelta_plot = [
-        # + df.opcldelta.ewm(span=5, adjust=False).mean(),
-        mpf.make_addplot(
-            df.opcldelta,
-            ax=ax,
-            scatter=False,
-            color=cvars.get('opcldeltastyle')['color'],
-            width=cvars.get('opcldeltastyle')['width'],
-            alpha=cvars.get('opcldeltastyle')['alpha'],
-        )
-    ]
-    return opcldelta_plot
-
-def get_bbDelta(df, **kwargs):
-    ax = kwargs['ax']
-    df['bbDelta'] = df['bbuAvg'] - df['bblAvg']
-
-    bbDelta_plot = [
-        mpf.make_addplot(
-            df['bbDelta'],
-            ax=ax,
-            scatter=False,
-            color=cvars.get('bbDeltastyle')['color'],
-            width=cvars.get('bbDeltastyle')['width'],
-            alpha=cvars.get('bbDeltastyle')['alpha'],
-        )
-    ]
-    return bbDelta_plot
-
 
 def get_hilodelta(df, **kwargs):
     ax = kwargs['ax']
@@ -1461,20 +1391,6 @@ def get_hilodelta(df, **kwargs):
     # + amin=df['Close'].min()
     # + amax=df['Close'].max()
     df['hilodelta'] = normalize_col(df.hilodelta, amin, amax)
-
-    hilodelta_plot = [
-        # + df.hilodelta.ewm(span=5, adjust=False).mean(),
-        mpf.make_addplot(
-            df.hilodelta,
-            ax=ax,
-            scatter=False,
-            color=cvars.get('hilodeltastyle')['color'],
-            width=cvars.get('hilodeltastyle')['width'],
-            alpha=cvars.get('hilodeltastyle')['alpha'],
-        ),
-    ]
-    return hilodelta_plot
-
 
 def get_macdema(df, **kwargs):
     ax = kwargs['ax']
@@ -1601,25 +1517,25 @@ def get_volume(df, **kwargs):
 def get_volume_line(df, **kwargs):
     ax = kwargs['ax']
     type = kwargs['type']
-    df['voldelta'] = df['Volume']
-    # + ! Volume represents the actual material in play, the 'amperage', so to speak, of the exchange
-    # + ! The open/close delta represents the
+    # df['voldelta'] = df['Volume']
+    # # + ! Volume represents the actual material in play, the 'amperage', so to speak, of the exchange
+    # # + ! The open/close delta represents the
+    #
+    # # + df['voldelta'] = df['Volume'] - (df['High'] - df['Low'])
+    # df['voldelta'] = df['Volume'] - (df['Close'] - df['Open'])
+    # df['voldelta'] = df['voldelta'].ewm(span=cvars.get('volumeline_span')).mean()
 
-    # + df['voldelta'] = df['Volume'] - (df['High'] - df['Low'])
-    df['voldelta'] = df['Volume'] - (df['Close'] - df['Open'])
-    df['voldelta'] = df['voldelta'].ewm(span=cvars.get('volumeline_span')).mean()
-
-    vlines_plot = mpf.make_addplot(
-        df['voldelta'],
-        ax=ax,
-        type=type,
-        color=cvars.get('volclrupstyle')['color'],
-        width=cvars.get('volclrupstyle')['width'],
-        alpha=cvars.get('volclrupstyle')['alpha'],
-    )
-
-    # + ax.axhline(y=0.0, color="black")
-    return [vlines_plot]
+    # vlines_plot = mpf.make_addplot(
+    #     df['voldelta'],
+    #     ax=ax,
+    #     type=type,
+    #     color=cvars.get('volclrupstyle')['color'],
+    #     width=cvars.get('volclrupstyle')['width'],
+    #     alpha=cvars.get('volclrupstyle')['alpha'],
+    # )
+    #
+    # # + ax.axhline(y=0.0, color="black")
+    # return [vlines_plot]
 
 
 # + 
@@ -1898,27 +1814,27 @@ def get_sigffmb(df, **kwargs):
     N = kwargs['N']
     Wn = kwargs['Wn']
 
-    # def tfunc(dfline, **kwargs):
-    #     df = kwargs['df']
-    #     band = kwargs['band']
-    #
-    #     d = dfline[f'sigffmb{band}']  # + * the sig value, can be very small
-    #     df = dfline['Close'] - d
-    #
-    #     nclose = dfline['Close']  # + (df*cvars.get('mbpfilter')["mx"][band])
-    #
-    #     return nclose
+    def tfunc(dfline, **kwargs):
+        df = kwargs['df']
+        band = kwargs['band']
+
+        d = dfline[f'sigffmb{band}']  # + * the sig value, can be very small
+        df = dfline['Close'] - d
+
+        nclose = dfline['Close']  # + (df*cvars.get('mbpfilter')["mx"][band])
+
+        return nclose
 
     colname = f'sigffmb{band}'
     df[colname] = 0
 
-    b, a = signal.butter(N, Wn, btype="bandpass", analog=False)     #* get filter params
-    sig = df['Close']                                               #* select data to filter
-    sigff = signal.lfilter(b, a, signal.filtfilt(b, a, sig))        #* get the filter
-    g.bag[f'sigfft{band}'].append(sigff[len(sigff) - 1])            #* store results in temp location
-    df[colname] = backfill(g.bag[f'sigfft{band}'])                  #* fill data to match df shape
+    b, a = signal.butter(N, Wn, btype="bandpass", analog=False)  # + * get filter params
+    sig = df['Close']  # + * select data to filter
+    sigff = signal.lfilter(b, a, signal.filtfilt(b, a, sig))  # + * get the filter
+    g.bag[f'sigfft{band}'].append(sigff[len(sigff) - 1])  # + * store results in temp location
+    df[colname] = backfill(g.bag[f'sigfft{band}'])  # + * fill data to match df shape
+    # + df[colname] = df['Close'] + df[colname]                      # + * add sig data to close
 
-    # + df[colname] = df['Close'] + df[colname]                     #* add sig data to close
     # + df[colname] = df.apply(lambda x:tfunc(x,band=band,df=df),axis=1) # + !JWXXX
 
     plots_sigffmb_list = mpf.make_addplot(  # + * flatter
@@ -1937,13 +1853,13 @@ def get_sigffmb2(df, **kwargs):
     N = kwargs['N']
     Wn = kwargs['Wn']
 
-    # def tfunc(dfline, **kwargs):
-    #     df = kwargs['df']
-    #     band = kwargs['band']
-    #     d = dfline[f'sigffmb2{band}']
-    #     df = dfline['rohlc'] - d
-    #     nclose = dfline['rohlc']  # + (df*cvars.get('mbpfilter')["mx"][band])
-    #     return nclose
+    def tfunc(dfline, **kwargs):
+        df = kwargs['df']
+        band = kwargs['band']
+        d = dfline[f'sigffmb2{band}']
+        df = dfline['rohlc'] - d
+        nclose = dfline['rohlc']  # + (df*cvars.get('mbpfilter')["mx"][band])
+        return nclose
 
     colname = f'sigffmb2{band}'
     df[colname] = 0
@@ -1951,11 +1867,11 @@ def get_sigffmb2(df, **kwargs):
     b, a = signal.butter(N, Wn, btype="bandpass", analog=False)
     sig = df['rohlc']
     sigff = signal.lfilter(b, a, signal.filtfilt(b, a, sig))
-    g.bag[f'sigfft2{band}'].append(sigff[len(sigff) - 1])  #! g.bag[f'sigfft2{band}'] MUST be defined in lib_globals (for now)
+    g.bag[f'sigfft2{band}'].append(
+        sigff[len(sigff) - 1])  # + ! g.bag[f'sigfft2{band}'] MUST be defined in lib_globals (for now)
     df[colname] = backfill(g.bag[f'sigfft2{band}'])
-
-
     # + df[colname] = df['rohlc'] + df[colname]
+
     # + df[colname] = df.apply(lambda x:tfunc(x,band=band,df=df),axis=1)
     # + df[colname].ewm(span=6).mean()
 
@@ -2086,28 +2002,28 @@ def plots_overunder(ohlc, **kwargs):
     patches.append(mpatches.Patch(color=cvars.get('overunderstyle')['color'], label="O/U"))
     return plots_overunder_list
 
-def plots_pt1(ohlc, **kwargs):
-    plots = kwargs['plots']
-    ax = kwargs['ax']
-    patches = kwargs['patches']
-
-    plot_pt1 = mpf.make_addplot(
-        ohlc['one_pt'],
-        ax=ax,
-        type="line",
-        color=cvars.get("pt1style")['color'],
-        width=cvars.get("pt1style")['width'],
-        alpha=1  # + cvars.get('tholostyle_I')['color'],
-    )
-    plots_pt1_list = add_plots(plots, plot_pt1)
-
-    ax.axhline(y=0.0, color='black')
-    ax.axhline(y=cvars.get("pt1_highlimit_sell"), color='cyan')
-    ax.axhline(y=cvars.get("pt1_lowlimit_buy"), color='magenta')
-
-    patches.append(mpatches.Patch(color=cvars.get('pt1style')['color'], label="1-pt"))
-
-    return plots_pt1_list
+# def plots_pt1(ohlc, **kwargs):
+#     plots = kwargs['plots']
+#     ax = kwargs['ax']
+#     patches = kwargs['patches']
+#
+#     plot_pt1 = mpf.make_addplot(
+#         ohlc['one_pt'],
+#         ax=ax,
+#         type="line",
+#         color=cvars.get("pt1style")['color'],
+#         width=cvars.get("pt1style")['width'],
+#         alpha=1  # + cvars.get('tholostyle_I')['color'],
+#     )
+#     plots_pt1_list = add_plots(plots, plot_pt1)
+#
+#     ax.axhline(y=0.0, color='black')
+#     ax.axhline(y=cvars.get("pt1_highlimit_sell"), color='cyan')
+#     ax.axhline(y=cvars.get("pt1_lowlimit_buy"), color='magenta')
+#
+#     patches.append(mpatches.Patch(color=cvars.get('pt1style')['color'], label="1-pt"))
+#
+#     return plots_pt1_list
 
 def plots_normclose(ohlc, **kwargs):
     plots = kwargs['plots']
@@ -2148,117 +2064,48 @@ def plots_siglf(ohlc, **kwargs):
     patches.append(mpatches.Patch(color=cvars.get('siglfstyle')['color'], label=label))
     return plots
 
-def plots_sigffmb(ohlc, **kwargs):
-    plots = kwargs['plots']
-    ax = kwargs['ax']
-    patches = kwargs['patches']
-
+def plots_sigffmb(ohlc):
     N = cvars.get("mbpfilter")['N']
     Wn_ary = cvars.get("mbpfilter")['Wn']
-    mx = cvars.get("mbpfilter")['mx']
 
-    if not cvars.get("plots_sigffmb_hide"):
-        for j in range(len(Wn_ary)):
-            plots = add_plots(plots, get_sigffmb(ohlc, N=N, Wn=Wn_ary[j], band=j, ax=ax))
-            label = f"FFmap {N},{Wn_ary[j]})"
-            patches.append(mpatches.Patch(color=cvars.get('sigffmbstyle')['color'][j], label=label))
-    else:  # + * JUST GET THE DATA, DONT PLOT
-        for j in range(len(Wn_ary)):
-            get_sigffmb(ohlc, N=N, Wn=Wn_ary[j], band=j, ax=ax)
+    for j in range(len(Wn_ary)):
+        get_sigffmb(ohlc, N=N, Wn=Wn_ary[j], band=j)
 
     # * we now have all the bands in cols 'sigffmb<band number>'
 
-    # for j in range(len(Wn_ary)):  # ! JWFIX ? XXX
-    #     ohlc[f'sigffmb{j}'] = normalize_col(ohlc[f'sigffmb{j}'])  # * set all bands to teh same data range
+    for j in range(len(Wn_ary)):  # ! JWFIX ? XXX
+        ohlc[f'sigffmb{j}'] = normalize_col(ohlc[f'sigffmb{j}'])  # * set all bands to teh same data range
 
-    ohlc['ffmap'] = range(len(ohlc)) #* make new column from old
-    for j in range(len(Wn_ary)):    #* loop throubn 6 band
-        ohlc['ffmap'] = ohlc['ffmap'] + (ohlc[f'sigffmb{j}']*mx[j])  # * add them all together
-
-    # print(ohlc['ffmap'])
-    # ohlc['ffmap'] = 1 / ohlc['ffmap']   #* take the inverse
-
-
-    plots_sigffmap_list = mpf.make_addplot(
-        ohlc['ffmap'],
-        ax=ax,
-        type="line",
-        color=cvars.get("ffmapstyle")['color'],
-        width=cvars.get("ffmapstyle")['width'],
-        alpha=cvars.get('ffmapstyle')['alpha'],
-    )
-
-    patches.append(mpatches.Patch(color=cvars.get('ffmapstyle')['color'], label="OHLC(sum(6f)^2) BUY"))
+    ohlc['ffmap'] = ohlc['sigffmb0']
+    for j in range(len(Wn_ary[1:])):
+        ohlc['ffmap'] = ohlc['ffmap'] + ohlc[f'sigffmb{j}']  # * add them all together
+    ohlc['ffmap'] = 1 / ohlc['ffmap']
 
     amin = float(ohlc['ffmap'].min())
     amax = float(ohlc['ffmap'].max())
 
     delta = (amax - amin) * (cvars.get('lowpctline') / 100)
 
-    # ax.axhline(amin + delta,
-    #     color=cvars.get("ffmaplolimstyle")['color'],
-    #     linewidth=cvars.get("ffmaplolimstyle")['linewidth'],
-    #     alpha=cvars.get('ffmaplolimstyle')['alpha']
-    # )
-    # ax.axhline(amax - delta,
-    #     color=cvars.get("ffmaphilimstyle")['color'],
-    #     linewidth=cvars.get("ffmaphilimstyle")['linewidth'],
-    #     alpha=cvars.get('ffmaphilimstyle')['alpha']
-    # )
-
     ohlc['ffmapllim'] = amin + delta
     ohlc['ffmapulim'] = amax - delta
 
-    if not cvars.get('plots_sigffmb_hide'):
-        return(add_plots(plots, [plots_sigffmap_list]))
-    else:
-        return plots
 
-def plots_sigffmb2(ohlc, **kwargs):
-    plots = kwargs['plots']
-    ax = kwargs['ax']
-    patches = kwargs['patches']
-
+def plots_sigffmb2(ohlc):
     N = cvars.get("mbpfilter")['N']
     Wn_ary = cvars.get("mbpfilter")['Wn']
-    mx = cvars.get("mbpfilter")['mx']
 
-    if not cvars.get("plots_sigffmb2_hide"):
-        for j in range(len(Wn_ary)):
-            plots = add_plots(plots, get_sigffmb2(ohlc, N=N, Wn=Wn_ary[j], band=j, ax=ax))
-            label = f"rFFmap {N},{Wn_ary[j]})"
-            patches.append(mpatches.Patch(color=cvars.get('sigffmbstyle')['color'][j], label=label))
-    else:  # + * JUST GET THE DATA, DONT PLOT
-        for j in range(len(Wn_ary)):
-            get_sigffmb2(ohlc, N=N, Wn=Wn_ary[j], band=j, ax=ax)
+    for j in range(len(Wn_ary)):
+        get_sigffmb2(ohlc, N=N, Wn=Wn_ary[j], band=j)
 
     # * we now have all teh bands in cols 'sigffmb<band number>'
 
-    # for j in range(len(Wn_ary)):
-    #     ohlc[f'sigffmb2{j}'] = normalize_col(ohlc[f'sigffmb2{j}'])
+    for j in range(len(Wn_ary)):
+        ohlc[f'sigffmb2{j}'] = normalize_col(ohlc[f'sigffmb2{j}'])
 
-
-    ohlc['ffmap2'] = range(len(ohlc))  # * make new column from old
-    for j in range(len(Wn_ary)):    #* loop throubn 6 band
-        ohlc['ffmap2'] = ohlc['ffmap2'] + (ohlc[f'sigffmb2{j}']*mx[j])  # * add them all together
-    # ohlc['ffmap2'] = 1 / ohlc['ffmap2']   #* take the inverse
-
-
-    # ohlc['ffmap2'] = ohlc['sigffmb20']
-    # for j in range(len(Wn_ary[1:])):
-    #     ohlc['ffmap2'] = ohlc['ffmap2'] + ohlc[f'sigffmb2{j}']
-    # ohlc['ffmap2'] = 1 / ohlc['ffmap2']
-
-    plots_sigffmap2_list = mpf.make_addplot(
-        ohlc['ffmap2'],
-        ax=ax,
-        type="line",
-        color=cvars.get("ffmap2style")['color'],
-        width=cvars.get("ffmap2style")['width'],
-        alpha=cvars.get('ffmap2style')['alpha'],
-    )
-
-    patches.append(mpatches.Patch(color=cvars.get('ffmap2style')['color'], label="Rohlc(sum(6f)^2) SELL"))
+    ohlc['ffmap2'] = ohlc['sigffmb20']
+    for j in range(len(Wn_ary[1:])):
+        ohlc['ffmap2'] = ohlc['ffmap2'] + ohlc[f'sigffmb2{j}']
+    ohlc['ffmap2'] = 1 / ohlc['ffmap2']
 
     amin = float(ohlc['ffmap2'].min())
     amax = float(ohlc['ffmap2'].max())
@@ -2269,21 +2116,6 @@ def plots_sigffmb2(ohlc, **kwargs):
     ohlc['ffmapllim2'] = amin + delta
     ohlc['ffmapulim2'] = amax - delta
 
-    # ax.axhline(amin + delta,
-    #     color=cvars.get("ffmap2lolimstyle")['color'],
-    #     linewidth=cvars.get("ffmap2lolimstyle")['linewidth'],
-    #     alpha=cvars.get('ffmap2lolimstyle')['alpha']
-    # )
-    # ax.axhline(amax - delta,
-    #     color=cvars.get("ffmap2hilimstyle")['color'],
-    #     linewidth=cvars.get("ffmap2hilimstyle")['linewidth'],
-    #     alpha=cvars.get('ffmap2hilimstyle')['alpha']
-    # )
-
-    if not cvars.get('plots_sigffmb2_hide'):
-        return(add_plots(plots, [plots_sigffmap2_list]))
-    else:
-        return plots
 
 def plots_hilo(ohlc, **kwargs):
     plots = kwargs['plots']
@@ -2295,47 +2127,8 @@ def plots_hilo(ohlc, **kwargs):
     plots = add_plots(plots, plots_hilo_list)
     return plots
 
-def plots_lookback(ohlc, **kwargs):
-    plots = kwargs['plots']
-    ax = kwargs['ax']
-    patches = kwargs['patches']
-
-    plots_lookback_list = [
-                        mpf.make_addplot(ohlc["lblow"],
-                        ax=ax,
-                        color=cvars.get('lblowstyle')['color'],
-                        width=cvars.get('lblowstyle')['width'],
-                        alpha=cvars.get('lblowstyle')['alpha'])
-    ]
-    patches.append(mpatches.Patch(color=cvars.get('lblowstyle')['color'], label="Lookback/3"))
-    plots = add_plots(plots, plots_lookback_list)
-    return plots
-
 def plots_rohlc(ohlc, **kwargs):
-    plots = kwargs['plots']
-    ax = kwargs['ax']
-    patches = kwargs['patches']
-
-    # + ! can;t to -1 as teh **2 makes it positive, identical to the ohlc
-    # + ohlc["rohlc"] = ohlc["Close"] * -1
-
-    # ohlc["rohlc"] = 10000 - ohlc["Close"]
     ohlc["rohlc"] = ohlc["Close"].max() - ohlc["Close"]
-
-    plots_rohlc_list = [mpf.make_addplot(
-        ohlc["rohlc"],
-        ax=ax,
-        color=cvars.get('rohlcstyle')['color'],
-        width=cvars.get('rohlcstyle')['width'],
-        alpha=cvars.get('rohlcstyle')['alpha'],
-    )]
-    patches.append(mpatches.Patch(
-        color=cvars.get('rohlcstyle')['color'],
-        label="Rohlc"
-    )
-    )
-    plots = add_plots(plots, plots_rohlc_list)
-    return plots
 
 
 def plots_hilolim(ohlc, **kwargs):
@@ -2351,42 +2144,11 @@ def plots_hilolim(ohlc, **kwargs):
     plots = add_plots(plots, plots_hilolim_list)
     return plots
 
-def plots_ffmaps(ohlc, **kwargs):
-    plots = kwargs['plots']
-    ax = kwargs['ax']
-    patches = kwargs['patches']
-
-    ohlc['ffmaps'] = ohlc['ffmap2'] - ohlc['ffmap']
-    # ohlc['ffmaps'] = ohlc['ffmaps'].ewm(span=2).mean()
-    # ohlc['ffmaps'] = ohlc['ffmaps'].ewm(span=4).mean()
-    # ohlc['ffmaps'] = ohlc['ffmaps'].ewm(span=8).mean()
-    # ohlc['ffmaps'] = ohlc['ffmaps'].ewm(span=16).mean()
-
-
-    plots_ffmaps_list = [mpf.make_addplot(ohlc["ffmaps"], ax=ax)]
-    patches.append(mpatches.Patch(color=cvars.get('ffmapsstyle')['color'], label="FFMAPs"))
-    plots = add_plots(plots, plots_ffmaps_list)
-    ax.axhline(0,0,color="black")
-    ax.axhline(cvars.get('ffmaps_hithresh'),cvars.get('ffmaps_hithresh'),color="cyan")
-    ax.axhline(cvars.get('ffmaps_lothresh'),cvars.get('ffmaps_lothresh'),color="magenta")
-
-    return plots
 
 def plots_mav(ohlc, **kwargs):
-    plots = kwargs['plots']
-    ax = kwargs['ax']
-    patches = kwargs['patches']
     mav = kwargs["mav"]
-    color = kwargs["color"]
-    width = kwargs["width"]
-    # + alpha = kwargs["alpha"]
 
     ohlc[f'MAV{mav}'] = ohlc["Close"].rolling(mav).mean().values
-    plots_mav_list = [mpf.make_addplot(ohlc[f"MAV{mav}"], ax=ax, color=color, width=width)]
-
-    patches.append(mpatches.Patch(color=color, label=f"MA-{mav}"))
-    plots = add_plots(plots, plots_mav_list)
-    return plots
 
 
 def plots_bb(ohlc, **kwargs):
@@ -2416,22 +2178,13 @@ def plots_2_bb(ohlc, **kwargs):
 
 
 def plots_bbavg(ohlc, **kwargs):
-    plots = kwargs['plots']
-    ax = kwargs['ax']
-    patches = kwargs['patches']
+    ohlc = add_bolbands(ohlc)
 
-    ohlc = add_bolbands(ohlc, ax=ax)
+    bbl = add_bbl_plots(ohlc, band=1)
+    bbl = add_bbl_plots(ohlc, band=2)
+    bbl = add_bbl_plots(ohlc, band=3)
 
-    bbl = add_bbl_plots(ohlc, ax=ax, band=1)
-    bbl = add_bbl_plots(ohlc, ax=ax, band=2)
-    bbl = add_bbl_plots(ohlc, ax=ax, band=3)
-
-    plots_bbavg_list = add_bb_avg_plots(ohlc, ax=ax)
-    plots = add_plots(plots, plots_bbavg_list)
-    patches.append(mpatches.Patch(color=cvars.get('bblAvgstyle')["color"], label="BB3 Low"))
-    patches.append(mpatches.Patch(color=cvars.get('bbmAvgstyle')["color"], label="BB3 Mid"))
-    patches.append(mpatches.Patch(color=cvars.get('bbuAvgstyle')["color"], label="BB3 Hi"))
-    return plots
+    plots_bbavg_list = add_bb_avg_plots(ohlc)
 
 
 def plots_2_bbavg(ohlc, **kwargs):
@@ -2453,42 +2206,34 @@ def plots_2_bbavg(ohlc, **kwargs):
     return plots
 
 
-def plots_hilodelta(ohlc, **kwargs):
-    plots = kwargs['plots']
-    ax = kwargs['ax']
-    patches = kwargs['patches']
-    plots = add_plots(plots, get_hilodelta(ohlc, ax=ax))
-    patches.append(mpatches.Patch(color=cvars.get('hilodeltastyle')['color'], label="Hi/Lo Delta"))
-    return plots
+# def plots_hilodelta(ohlc, **kwargs):
+#     plots = kwargs['plots']
+#     ax = kwargs['ax']
+#     patches = kwargs['patches']
+#     plots = add_plots(plots, get_hilodelta(ohlc, ax=ax))
+#     patches.append(mpatches.Patch(color=cvars.get('hilodeltastyle')['color'], label="Hi/Lo Delta"))
+#     return plots
+
+#
+# def plots_opcldelta(ohlc, **kwargs):
+#     plots = kwargs['plots']
+#     ax = kwargs['ax']
+#     patches = kwargs['patches']
+#     plots = add_plots(plots, get_opcldelta(ohlc, ax=ax))
+#     patches.append(mpatches.Patch(color=cvars.get('opcldeltastyle')['color'], label="Open/Close Delta"))
+#     return plots
 
 
-def plots_opcldelta(ohlc, **kwargs):
-    plots = kwargs['plots']
-    ax = kwargs['ax']
-    patches = kwargs['patches']
-    plots = add_plots(plots, get_opcldelta(ohlc, ax=ax))
-    patches.append(mpatches.Patch(color=cvars.get('opcldeltastyle')['color'], label="Open/Close Delta"))
-    return plots
-
-def plots_bbDelta(ohlc, **kwargs):
-    plots = kwargs['plots']
-    ax = kwargs['ax']
-    patches = kwargs['patches']
-    plots = add_plots(plots, get_bbDelta(ohlc, ax=ax))
-    patches.append(mpatches.Patch(color=cvars.get('opcldeltastyle')['color'], label="Open/Close Delta"))
-    return plots
-
-
-def plots_deltadelta(ohlc, **kwargs):
-    plots = kwargs['plots']
-    ax = kwargs['ax']
-    patches = kwargs['patches']
-    plots = add_plots(plots, get_deltadelta(ohlc, ax=ax))
-    patches.append(mpatches.Patch(color=cvars.get('deltadeltastyle')['color'], label="Delta Delta"))
-    ax.axhline(y=cvars.get("delta_highlimit_sell"), color='cyan')
-    ax.axhline(y=0.0, color='black')
-    ax.axhline(y=cvars.get("delta_lowlimit_buy"), color='magenta')
-    return plots
+# def plots_deltadelta(ohlc):
+#     plots = kwargs['plots']
+#     ax = kwargs['ax']
+#     patches = kwargs['patches']
+#     plots = add_plots(plots, get_deltadelta(ohlc, ax=ax))
+#     patches.append(mpatches.Patch(color=cvars.get('deltadeltastyle')['color'], label="Delta Delta"))
+#     ax.axhline(y=cvars.get("delta_highlimit_sell"), color='cyan')
+#     ax.axhline(y=0.0, color='black')
+#     ax.axhline(y=cvars.get("delta_lowlimit_buy"), color='magenta')
+#     return plots
 
 
 # + -------------------------------------------------------------
@@ -2545,7 +2290,6 @@ def pcERROR():
 #   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 
 def process_buy(is_a_buy, **kwargs):
-    ax = kwargs['ax']
     BUY_PRICE = kwargs['CLOSE']
     df = kwargs['df']
     dfline = kwargs['dfline']
@@ -2567,7 +2311,7 @@ def process_buy(is_a_buy, **kwargs):
     # print(f"stoplimit_price set to {g.stoplimit_price}  ({BUY_PRICE} * {1-cvars.get('sell_fee')})")
 
     # * show on chart we have something to sell
-    ax.set_facecolor("#f7d5de")
+    # ax.set_facecolor("#f7d5de")
 
     # * first get latest conversion price
     g.conversion = get_last_price(g.spot_src, quiet=True)
@@ -2577,9 +2321,7 @@ def process_buy(is_a_buy, **kwargs):
     # ! value to arrive a the NEXT g.gcounter value that will allow buys.
     # !g.cooldown holds the number of buys
 
-
-    g.cooldown = g.gcounter + (g.current_run_count*3) #cvars.get("cooldown")
-    # print(f"cooldown: {g.cooldown} / {g.current_run_count*3} / {g.gcounter}")
+    g.cooldown = g.gcounter + cvars.get("cooldown")
     # * we are in, so reset the buy signal for next run
     g.external_buy_signal = False
     # ! check there are funds?? JWFIX
@@ -2628,8 +2370,6 @@ def process_buy(is_a_buy, **kwargs):
         g.is_first_buy = False
     state_wr("last_buy_price", BUY_PRICE)
 
-    g.est_buy_fee = (g.purch_qty * BUY_PRICE) * cvars.get('buy_fee')
-
     # * create a new order
     order = {}
     order["pair"] = cvars.get("pair")
@@ -2667,17 +2407,9 @@ def process_buy(is_a_buy, **kwargs):
     # e = f"{g.avg_price:06.4f}"
 
     # * print to console
-    str=[]
-    str.append(f"[{g.gcounter:05d}]")
-    str.append(f"[{order['order_time']}]")
-    str.append(Fore.RED + f"Hold" + Fore.CYAN + f"{s_size} @ ${s_price} = ${s_cost}" + Fore.RESET)
-    str.append(Fore.GREEN + f"AVG: " + Fore.CYAN +  Style.BRIGHT + f"${g.avg_price:6.2f}"+Style.RESET_ALL)
-    str.append(Fore.GREEN + f"COV: " + Fore.CYAN +  Style.BRIGHT + f"${g.avg_price+g.covercost:6.2f}"+Style.RESET_ALL)
-    str.append(Fore.RED + f"Fee: " + Fore.CYAN + f"${g.est_buy_fee:3.2f}" + Fore.RESET )
-    iline=str[0]
-    for s in str[1:]:
-        iline = f"{iline} {s}"
-    print(iline)
+    est_fee = (g.subtot_qty * BUY_PRICE) * cvars.get('buy_fee')
+
+    print(f"[{g.gcounter:05d}] [{order['order_time']}] "+Fore.RED + f"Hold {s_size} @ ${s_price} = ${s_cost}   Fee: ${est_fee:3.2f}"+Fore.RESET) #" St {g.subtot_cost:06.4f}, Sq {g.subtot_qty:06.4f}, avg {g.avg_price:06.4f}"+Fore.RESET)
 
     # * adjust purch_qty according to rules, and make number compatible with CB api
     if g.needs_reload:
@@ -2713,20 +2445,18 @@ def process_buy(is_a_buy, **kwargs):
 #   - ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 
 def process_sell(is_a_sell, **kwargs):
-    ax = kwargs['ax']
     SELL_PRICE = kwargs['CLOSE']
     df = kwargs['df']
     dfline = kwargs['dfline']
 
-    ax.set_facecolor("#ffffff")  # * make background white when nothing to sell
 
     # * first get latest conversion price
     g.conversion = get_last_price(g.spot_src)
 
+
     g.cooldown = 0                  # * reset cooldown
     g.buys_permitted = True         # * Allows buys again
     g.external_sell_signal = False  # * turn off external sell signal
-    state_wr("last_buy_price", 1e+10)
 
     # * update buy counts
     g.tot_buys = g.tot_buys + g.curr_buys
@@ -2738,6 +2468,15 @@ def process_sell(is_a_sell, **kwargs):
 
     # * calc pct gain/loss relative to invesment, NOT capital
     g.last_pct_gain = ((g.subtot_value-g.subtot_cost)/g.subtot_cost)*100
+
+    # * calc and save new data
+    # g.pnl_running = sum(state_r('pnl_record_list'))
+    # g.pct_running = sum(state_r('pct_gain_list'))
+    # state_ap("pct_gain_list", g.last_pct_gain)
+    # state_ap("pnl_record_list", g.subtot_value - g.subtot_cost)
+
+    # state_wr("pnl_running", g.pnl_running)
+    # state_wr("pct_running", g.pct_running)
 
     # * save current run count, incremented in BUY, then reset
     state_ap("run_counts", g.current_run_count)
@@ -2795,7 +2534,8 @@ def process_sell(is_a_sell, **kwargs):
     state_wr('open_buys', [])
     state_wr('qty_holding', [])
 
-
+    # * get total fees fopr sell-cycle
+    tfees = sqlex(f"select sum(fees) from orders where bsuid = {g.bsuid} and session = '{g.session_name}'",ret="one")[0]
     # * cals final cost and sale of session
     purchase_price = g.subtot_cost             
     sold_price = g.subtot_qty * SELL_PRICE     
@@ -2809,9 +2549,10 @@ def process_sell(is_a_sell, **kwargs):
     rp2 = get_running_bal(version=2, ret='one')
     s_rp2 = f"{rp2:6.2f}"
 
-    # * calc running total (incl fees)
-    g.running_total = get_running_bal(version=3, ret='one')
-    s_running_total = f"{g.running_total:6.2f}"
+    # * calc running total
+    rp3 = get_running_bal(version=3, ret='one')
+    s_rp3 = f"{rp3:6.2f}"
+
 
 
 
@@ -2825,9 +2566,7 @@ def process_sell(is_a_sell, **kwargs):
     # - 9/20
     # - 0.45  = 45% = profit margin
     # - 20 * (1+.50) = 29 = new amt cap
-    g.pct_return = ( sold_price - (purchase_price+ g.covercost))/sold_price # ! x 100 for actual pct value
-    if math.isnan(g.pct_return):
-        g.pct_return = 0
+    g.pct_return = (sold_price - (purchase_price + tfees))/purchase_price # ! x 100 for actual pct value
 
     # * pct relative to capital, whuch SHOULD be (current price * 'capital')  (NOT INCL FEES)
     # g.pct_cap_return = (sold_price - purchase_price)/(SELL_PRICE * cvars.get('capital'))
@@ -2848,48 +2587,29 @@ def process_sell(is_a_sell, **kwargs):
     sqlex(cmd)
 
     # * print to console
-
-
-    str=[]
-    str.append(f"[{g.gcounter:05d}]")
-    str.append(f"[{order['order_time']}]")
-    str.append(Fore.GREEN + f"Sold"  + f"{s_size} @ ${s_price} = ${s_tot}")
-    str.append(Fore.GREEN + f"AVG: " + Fore.CYAN +  Style.BRIGHT + f"${g.avg_price:6.2f}"+Style.RESET_ALL)
-    str.append(Fore.GREEN + f"Fee: " + Fore.CYAN +  Style.BRIGHT + f"${g.est_sell_fee:3.2f}"+Style.RESET_ALL)
-    str.append(Fore.GREEN + f"SessGross: " + Fore.CYAN +  Style.BRIGHT + f"${(g.subtot_qty * SELL_PRICE) - g.subtot_cost:06.4f}"+Style.RESET_ALL)
-    str.append(Fore.GREEN + f"SessFee: " + Fore.CYAN +  Style.BRIGHT + f"${g.covercost:3.2f}"+Style.RESET_ALL)
-    str.append(Fore.GREEN + f"SessNet: " + Fore.CYAN +  Style.BRIGHT + f"${s_rp2}"+Style.RESET_ALL)
-    str.append(Fore.RESET)
-    iline=str[0]
-    for s in str[1:]:
-        iline = f"{iline} {s}"
-    print(iline)
-
-    # \f"[{g.gcounter:05d}] [{order['order_time']}] "+
-    # =      Fore.GREEN + f"Sold {s_size} @ ${s_price} = ${s_tot}    PnL: ${(g.subtot_qty * SELL_PRICE) - g.subtot_cost:06.4f}  Fee: ${est_fee:3.2f}  TFee: ${total_fees_to_cover:3.2f}  AVG: ${g.avg_price:6.2f} "+Fore.RESET)
+    est_fee = (g.subtot_qty * SELL_PRICE) * cvars.get('sell_fee')
+    g.covercost = tfees
+    print(f"[{g.gcounter:05d}] [{order['order_time']}] "+Fore.GREEN + f"Sold {s_size} @ ${s_price} = ${s_tot}    PnL: ${(g.subtot_qty * SELL_PRICE) - g.subtot_cost:06.4f}  Fee: ${est_fee:3.2f}  TFee: ${tfees:3.2f}  AVG: ${g.avg_price:6.2f} "+Fore.RESET) # PnL: ${(g.subtot_qty * SELL_PRICE) - g.subtot_cost:06.4f}  {g.pct_return * 100:06.4f}% / {g.pct_cap_return * 100:06.4f}%"+Fore.RESET)
 
     if (g.subtot_qty * SELL_PRICE) < cvars.get("stop_at"):
         waitfor([f"Total < {cvars.get('stop_at')}"])
 
-    # g.capital = g.capital + (g.capital * (g.pct_cap_return))
-    # print(f"{g.capital}  * 1+{g.pct_cap_return}")
-
+    # g.capital = g.capital + (g.capital * g.pct_cap_return)
     g.capital = g.capital * (1+g.pct_cap_return)
+
+
+    tvals = f"\tNet: ${s_rp2}\tRunning Total: ${s_rp3}"
 
     # state_ap("running_tot",rp1)
 
     # * this shows the number before fees
+    print(Back.YELLOW+Fore.BLACK+f"[{dfline['Date']}] "+f"NEW CAPITAL AMT: {g.capital}"+Back.RESET+Fore.RESET+Fore.YELLOW+f"\t{tvals}"+Fore.RESET)
 
-    str=[]
-    str.append(f"{Back.YELLOW}{Fore.BLACK}")
-    str.append(f"[{dfline['Date']}]")
-    str.append(f"NEW CAP AMT: "+Fore.BLACK+Style.BRIGHT+f"{g.capital:6.5f}"+Style.NORMAL)
-    str.append(f"Running Total:"+Fore.BLACK+Style.BRIGHT+f" ${s_running_total}"+Style.NORMAL)
-    str.append(f"{Back.RESET}{Fore.RESET}")
-    iline=str[0]
-    for s in str[1:]:
-        iline = f"{iline} {s}"
-    print(iline)
+    # # * this shows valude of the last sell-cycle only, not the running total
+    # print(Back.YELLOW+Fore.BLACK+f"[{dfline['Date']}] "+f"NEW CAPITAL AMT: {g.capital}"+Back.RESET+Fore.RESET+Fore.YELLOW+f"\t${s_rp2}"+Fore.RESET)
+    #
+    # # *
+    # print(Back.YELLOW+Fore.BLACK+f"[{dfline['Date']}] "+f"NEW CAPITAL AMT: {g.capital}"+Back.RESET+Fore.RESET+Fore.YELLOW+f"\t${s_rp3}"+Fore.RESET)
 
     # * update available capital according to last gains/loss
     g.purch_qty = g.capital * g.purch_pct
@@ -2909,7 +2629,6 @@ def process_sell(is_a_sell, **kwargs):
 # + -------------------------------------------------------------
 
 def trigger_bb3avg(df, **kwargs):
-    ax = kwargs['ax']
     cols = df['ID'].max()
     g.current_close = df.iloc[len(df.index)-1]['Close']
 
@@ -2930,14 +2649,11 @@ def trigger_bb3avg(df, **kwargs):
         is_a_sell = True
 
         if action == "buy":
-            # BUY_PRICE = None
+            BUY_PRICE = None
             if g.idx == cols:  # * idx is the current index of rfow, cols is max rows... so only when arrived at last row
                 # * load the test class
                 # ! can do this outside loop? JWFIX
-                # importlib.reload(lib_tests_class)
-                # # from lib_tests_class import Tests
-                importlib.reload(lib_tests_class)
-                tc = lib_tests_class.Tests(cvars, dfline, df, idx=g.idx)
+                tc = Tests(cvars, dfline, df, idx=g.idx)
 
                 # * run test, passing the BUY test algo, or run is alt-S, or another external trigger, has been activated
                 is_a_buy = is_a_buy and tc.buytest(cvars.get('testpair')[0]) or g.external_buy_signal
@@ -2946,15 +2662,8 @@ def trigger_bb3avg(df, **kwargs):
 
                 # * BUY is approved, so check that we are not runnng hot
                 g.uid = uuid.uuid4().hex
-                # if is_a_buy and (g.gcounter >= g.cooldown or CLOSE < dfline['lblow']):
-                # if is_a_buy and (g.gcounter >= g.cooldown):
-                if cvars.get('xflag01'):
-                    is_a_buy = is_a_buy and (g.gcounter >= g.cooldown or CLOSE < dfline['lblow'])
-                else:
-                    is_a_buy = is_a_buy and (g.gcounter >= g.cooldown)
-
-                if is_a_buy:
-                    BUY_PRICE = process_buy(is_a_buy, ax=ax, CLOSE=CLOSE, df=df, dfline=dfline)
+                if is_a_buy and (g.gcounter >= g.cooldown):
+                    BUY_PRICE = process_buy(is_a_buy, CLOSE=CLOSE, df=df, dfline=dfline)
                 else:
                     BUY_PRICE = float("Nan")
             else:
@@ -2978,34 +2687,19 @@ def trigger_bb3avg(df, **kwargs):
                     limitsell = True
                     g.external_sell_signal = True
 
-                # * get total fees for sell-cycle BEFORE testing
-                g.covercost = sqlex(f"select sum(fees) from orders where bsuid = {g.bsuid} and session = '{g.session_name}'",ret="one")[0]
-                # * get SELL est_fee
-                g.est_sell_fee = (g.subtot_qty * CLOSE) * cvars.get('sell_fee')
-                g.covercost = g.covercost + g.est_sell_fee
-
-                # print("sell BEFORE TEST:", g.covercost)
-                # from lib_tests_class import Tests
-                # tc = Tests(cvars, dfline, df, idx=g.idx)
-
-                # importlib.reload(lib_tests_class)
-                # from lib_tests_class import Tests
-                # tc = Tests(cvars, dfline, df, idx=g.idx)
-
-                importlib.reload(lib_tests_class)
-                tc = lib_tests_class.Tests(cvars, dfline, df, idx=g.idx)
-
+                tc = Tests(cvars, dfline, df, idx=g.idx)
                 is_a_sell = is_a_sell and tc.selltest(cvars.get('testpair')[1]) or g.external_sell_signal
                 # is_a_sell = is_a_sell and STEPSUP >= 2              # * at least 3 previous downs
 
 
                 if is_a_sell:
                     g.uid = uuid.uuid4().hex
+
                     if limitsell:
-                        SELL_PRICE = process_sell(is_a_sell, ax=ax, CLOSE=g.stoplimit_price, df=df, dfline=dfline)
+                        SELL_PRICE = process_sell(is_a_sell, CLOSE=g.stoplimit_price, df=df, dfline=dfline)
                         g.stoplimit_price = 1e-10
                     else:
-                        SELL_PRICE = process_sell(is_a_sell, ax=ax, CLOSE=CLOSE, df=df, dfline=dfline)
+                        SELL_PRICE = process_sell(is_a_sell, CLOSE=CLOSE, df=df, dfline=dfline)
                     os.system("touch /tmp/_sell")
                 else:
                     SELL_PRICE = float("Nan")
@@ -3027,26 +2721,19 @@ def trigger_bb3avg(df, **kwargs):
 
 
     # ! add new data to first row
-    df['bb3avg_sell'] = df.apply(lambda x: tfunc(x, action="sell", df=df, ax=ax), axis=1)
-    df['bb3avg_buy'] = df.apply(lambda x: tfunc(x, action="buy", df=df, ax=ax), axis=1)
+    df['bb3avg_sell'] = df.apply(lambda x: tfunc(x, action="sell", df=df), axis=1)
+    df['bb3avg_buy'] = df.apply(lambda x: tfunc(x, action="buy", df=df), axis=1)
 
-    if g.avg_price > 0:
-        ax.axhline(g.avg_price, color="indigo", linewidth=1, alpha=1)
-        ax.axhline(g.avg_price+g.covercost, color="indigo", linewidth=1, alpha=0.5)
+    # if g.avg_price > 0:
+    #     ax.axhline(g.avg_price, color="indigo", linewidth=1, alpha=1)
 
     tmp = g.df_buysell.iloc[::-1] # ! here we have to invert the array to get the correct order
-    p1 = mpf.make_addplot(tmp.buy, ax=ax, scatter=True, color="red", markersize=100, alpha=1, marker=6)  # + ^
-    p2 = mpf.make_addplot(tmp.sell, ax=ax, scatter=True, color="green", markersize=100, alpha=1, marker=7)  # + v
-
-    #* add to MACD
-
-
-
-
+    # p1 = mpf.make_addplot(tmp.buy, scatter=True, color="red", markersize=100, alpha=1, marker=6)  # + ^
+    # p2 = mpf.make_addplot(tmp.sell, ax=ax, scatter=True, color="green", markersize=100, alpha=1, marker=7)  # + v
     #* get rid of everything we are not seeing
     g.df_buysell = g.df_buysell.head(len(df))
 
-    return [[p1], [p2]]
+    # return [[p1], [p2]]
 
 # print("================= ",g.cfgfile)
 cvars = Cvars(g.cfgfile)

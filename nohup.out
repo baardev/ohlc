@@ -7,3 +7,7 @@
         ./liveview.py -f state_0.json -c pnl_record_list &
         ./liveview.py -f state_0.json -c pct_gain_list &
     
+[2]Error:Expecting value: line 1 column 1 (char 0)... continuing
+[3]Error:strptime() argument 1 must be str, not bool...` continuing
+[3]Error:strptime() argument 1 must be str, not bool...` continuing
+[3]Error:strptime() argument 1 must be str, not bool...` continuing

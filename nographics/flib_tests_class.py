@@ -1,6 +1,6 @@
-from lib_cvars import Cvars
-import lib_globals as g
-import lib_ohlc as o
+from flib_cvars import Cvars
+import flib_globals as g
+import flib_ohlc as o
 # + cvars = Cvars(g.cfgfile)
 
 class Tests:
@@ -41,22 +41,6 @@ class Tests:
 
         self.STEPSUP = dfl['stepsup']
         self.STEPSDN = dfl['stepsdn']
-
-        self.FFMAPS = dfl['ffmaps']
-        self.BBDELTA = dfl['bbDelta']
-
-        self.MAVLONG = dfl['MAV20']
-        self.MAVLONGER = dfl['MAV40']
-        self.MAVLONGEST = dfl['MAV60']
-
-        self.LBLOW = dfl['lblow']
-
-        current_ffmaps = df.iloc[len(df.index)-1]['ffmaps']
-        ffcp = df.iloc[len(df.index)-2]['ffmaps']
-        ffcpp = df.iloc[len(df.index)-3]['ffmaps']
-
-        self.FFMAPS_UPTURN = current_ffmaps > ffcp and ffcp < ffcpp
-        self.FFMAPS_DNTURN = current_ffmaps < ffcp and ffcp > ffcpp
 
 
 
@@ -122,19 +106,19 @@ class Tests:
 
 
     def xunder(self,**kwargs):
+        # + * self.xunder(trigger = df['ffmap'], against=self.AVG_PRICE)
         rs = False
-        df = kwargs['df']
-        dfl = kwargs['dfl']
         varval = kwargs['trigger']
-        refval = kwargs['against']
-        current_varval = df[varval].iloc[len(df.index)-1]
-        prev_varval =df[varval].iloc[len(df.index)-2]
-
-        if prev_varval > refval and current_varval <= refval:
+        refval = float(kwargs['against'])
+        current_val = float(varval.iloc[len(varval.index)-1])
+        prev_val = float(varval.iloc[len(varval.index)-2])
+        if prev_val > refval and current_val <= refval:
             rs = True
         return rs
 
     def xover(self,**kwargs):
+        # + * self.xover(trigger = df['ffmap'], against=self.AVG_PRICE)
+
         rs = False
         df = kwargs['df']
         dfl = kwargs['dfl']
@@ -201,7 +185,7 @@ class Tests:
     # + * special case SELL tests
     def BUY_always(self):
         FLAG=True
-        # FLAG = FLAG and self.compare(price = self.CLOSE, type='lt', against = self.OPEN)
+        FLAG = FLAG and self.compare(price = self.CLOSE, type='lt', against = self.OPEN)
         return FLAG
 
     def SELL_never(self):
@@ -209,7 +193,7 @@ class Tests:
 
     def SELL_always(self):
         FLAG=True
-        # FLAG = FLAG and self.compare(price = self.CLOSE, type='gt', against = self.OPEN)
+        FLAG = FLAG and self.compare(price = self.CLOSE, type='gt', against = self.OPEN)
         return FLAG
 
 
@@ -224,33 +208,12 @@ class Tests:
         #     self.xover(trigger="bbl0", against=self.BB_LOW_2, dfl=self.dfl, df=self.df)
         # )
 
-        FLAG = FLAG and self.FFMAPS_UPTURN
-        FLAG = FLAG and self.FFMAPS < -5
-        FLAG = FLAG and self.CLOSE < self.MAVLONG
-        # FLAG = FLAG and self.MAVLONG < self.MAVLONGER
-        # FLAG = FLAG and self.MAVLONG < self.MAVLONGEST
-        FLAG = FLAG and self.CLOSE < o.state_r('last_buy_price')
-
-        if o.cvars.get('xflag01'):
-            FLAG = FLAG or self.xunder(trigger="Close", against=self.LBLOW, dfl=self.dfl, df=self.df)
-
-
-
-
-
-        #and self.BBDELTA > 15
-                # self.xunder(trigger="Close", against=self.BB_LOW_1, dfl=self.dfl, df=self.df)
-                # self.CLOSE < self.BB_LOW_1    #!red
-                # self.CLOSE < self.BB_LOW_2  #* green
-                        # and self.CLOSE < self.BB_LOW_3
-        # )
-        # FLAG = FLAG or (
-        #     # self.BB_LOW_1 < self.BB_LOW_2
-
-
-        #     self.xover(trigger="bbl0", against=self.BB_LOW_2, dfl=self.dfl, df=self.df)
-        #     # or self.xover(trigger='ffmap', against=self.FFMAPLLIM, dfl=self.dfl, df=self.df)
-        # )
+        FLAG = FLAG and self.Cunder3BBlow
+        FLAG = FLAG or (
+            # self.BB_LOW_1 < self.BB_LOW_2
+            self.xover(trigger="bbl0", against=self.BB_LOW_2, dfl=self.dfl, df=self.df)
+            # or self.xover(trigger='ffmap', against=self.FFMAPLLIM, dfl=self.dfl, df=self.df)
+        )
 
         return FLAG
     # * ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
@@ -262,35 +225,13 @@ class Tests:
         #         and self.CLOSE > self.AVG_PRICE
         # )
 
-        thisClose = self.df['Close'].iloc[len(self.df.index)-1]
-        lastClose = self.df['Close'].iloc[len(self.df.index)-2]
+        FLAG = FLAG and self.Cover3BBhigh
+        FLAG = FLAG or (
+                # self.xover(trigger="bbl0", against=self.BB_LOW_2, dfl=self.dfl, df=self.df)
+                # and self.xover(trigger='ffmap2', against=self.FFMAPLLIM2, dfl=self.dfl, df=self.df)
+                self.CLOSE > self.AVG_PRICE * 1.002
+        )
 
-        fullcost = (g.avg_price + g.covercost)
-        if self.FFMAPS_DNTURN and self.FFMAPS > 0:
-            FLAG = FLAG and True
-        else:
-            FLAG = FLAG and thisClose > fullcost
-        # FLAG = FLAG or self.CLOSE > fullcost
-
-
-        #and self.CLOSE > (self.AVG_PRICE + g.covercost)
-        # print(f"tesfor for voer: {g.covercost}")
-        # FLAG = FLAG and self.CLOSE > (g.avg_price + (g.covercost*2))
-        # FLAG = FLAG and (
-        #
-        #         self.CLOSE > self.BB_HIGH_1   #!red
-        #         # self.CLOSE > self.BB_HIGH_2  #*green
-        #         # and self.CLOSE < self.BB_LOW_3
-        # )
-
-        #
-        # FLAG = FLAG and self.Cover3BBhigh
-        # FLAG = FLAG or (
-        #         # self.xover(trigger="bbl0", against=self.BB_LOW_2, dfl=self.dfl, df=self.df)
-        #         # and self.xover(trigger='ffmap2', against=self.FFMAPLLIM2, dfl=self.dfl, df=self.df)
-        #         self.CLOSE > self.AVG_PRICE * 1.002
-        # )
-        #
 
         return FLAG
 

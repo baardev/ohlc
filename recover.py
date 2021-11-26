@@ -1,33 +1,37 @@
 #!/usr/bin/python3.9
+import matplotlib
+import logging
+matplotlib.use('Tkagg')
 import lib_globals as g
 import lib_ohlc as o
-import logging
-import getopt
-import sys
-from colorama import Fore, Back, Style
-from colorama import init
-init()
+import getopt, sys, os
 
 # + ≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
+
 argv = sys.argv[1:]
 try:
-    opts, args = getopt.getopt(argv, "-hs:v:", ["help","session=","version=" ])
+    opts, args = getopt.getopt(argv, "-hd:", ["help","dir="])
 except getopt.GetoptError as err:
     sys.exit(2)
 
-session_name = ""
-version = 1
+g.session_name = False
+dir = False
 for opt, arg in opts:
     if opt in ("-h", "--help"):
-        print("-s, --session   session name")
-        print("-v, --version   version 1 (calc row) or 2 (db sum())")
+        print("-h, --help   this info")
+        print("-d, --dir  dir of run")
         sys.exit(0)
 
-    if opt in ("-s", "--session"):
-        session_name = arg
-    if opt in ("-v", "--version"):
-        version=int(arg)
+    if opt in ("-d", "--dir"):
+        dir = arg
+
+if not dir:
+    print("Missinfg dir (-d)")
+    exit(1)
+
 # + ≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
+
+print(f"RECOVERING: {dir}")
 
 
 g.logit = logging
@@ -39,9 +43,19 @@ g.logit.basicConfig(
     level=o.cvars.get('logging')
 )
 stdout_handler = g.logit.StreamHandler(sys.stdout)
-g.dbc, g.cursor = o.getdbconn()
 
-rs = o.get_running_bal(version=1, session_name=session_name)
+os.chdir(f"../{dir}")
+
+g.session_name = o.state_r("session_name")
+
+cmd = f"./dbview.py -s {g.session_name} -c profit &"
+print(cmd)
+os.system(cmd)
 
 
-print(rs)
+cmd = f"cd ../{dir} && ./ohlc.py -r "
+print(cmd)
+os.system(cmd)
+
+
+

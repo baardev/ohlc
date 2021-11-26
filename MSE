@@ -1,0 +1,1 @@
+mysql -ujmc -p6kjahsijuhdxhgd jmcap -e "$1"
