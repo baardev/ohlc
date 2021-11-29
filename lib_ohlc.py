@@ -353,6 +353,7 @@ def get_running_bal(**kwargs):
         profit = sqlex(f"SELECT sum(netcredits) as profit FROM orders where session='{sname}'", ret=ret)[0]
         return profit
 
+
     if version == 3:
         # * don;t need lastid, as we are in teh 'sold' space, whicn means teh last order was a sell
         # lastid = sqlex(f"select id from orders where session = '{sname}' order by id desc limit 1 ", ret=ret)[0]
@@ -910,19 +911,27 @@ def truncate(number, digits) -> float:
     except:
         return 0
 
-
 def wavg(shares, prices):
-    numer = 0
-    denom = 0
+    tot_cost = 0
+    adj_tot_cost = 0
+    tot_qty = 0
     for i in range(len(shares)):
-        numer = numer + (prices[i] * shares[i])
-        denom = denom + shares[i]
+        adj_price = prices[i] * (1+cvars.get('buy_fee'))
+        price = prices[i]
+        tot_cost = tot_cost + (price * shares[i])
+        adj_tot_cost = adj_tot_cost + (adj_price * shares[i])
+        tot_qty = tot_qty + shares[i]
     try:
-        avg = numer / denom
+        avg = tot_cost / tot_qty
+        adj_avg = adj_tot_cost / tot_qty
     except:
-        avg = numer
-    return numer, denom, avg
+        avg = tot_cost
+        adj_avg = adj_tot_cost
 
+
+    # print(f"Calced subtot_qty = {tot_qty}")
+    # print(f"Calced subtot_cost = {tot_cost}")
+    return tot_cost, tot_qty, avg, adj_tot_cost, adj_avg
 
 def get_secret(**kwargs):
     exchange = kwargs['provider']
@@ -1442,6 +1451,7 @@ def get_bbDelta(df, **kwargs):
             alpha=cvars.get('bbDeltastyle')['alpha'],
         )
     ]
+    ax.axhline(y=cvars.get('bbDelta_lim'), color="black")
     return bbDelta_plot
 
 
@@ -1713,6 +1723,41 @@ def get_overunder(df, **kwargs):
     return [oum_plot]
 
 
+def get_sigffdelta(df, **kwargs):
+    ax = kwargs['ax']
+
+    # def tfunc(dfline, **kwargs):
+    #     df = kwargs['df']
+    #     # if df['sigffdelta'][-1] < df['sigffdelta'][-2] and df['sigffdelta'][-2] > df['sigffdelta'][-3]:
+    #     g.sigffdeltahi =  df['sigffdelta'].tail(10).max()
+    #     print(g.sigffdeltahi)
+    #     return g.sigffdeltahi
+    #     # else:
+    #     #     return g.sigffdeltahi
+        #
+    df['sigffdelta'] = (df['sigff']- df['sigff'].shift(5))**2
+
+    g.sigffdeltahi =  df['sigffdelta'].tail(7).max()
+
+    # df['sigffdeltahi'] = df.apply(lambda x: tfunc(x,df=df), axis=1)
+
+    # df['sigffdeltahi'].fillna(method='ffill', inplace=True)
+
+    sigffdelta_plot = mpf.make_addplot(
+        df['sigffdelta'],
+        ax=ax,
+        type="line",
+        color=cvars.get('overunder2style')['color'],
+        width=cvars.get('overunder2style')['width'],
+        alpha=cvars.get('overunder2style')['alpha'],
+    )
+    ax.axhline(y=cvars.get('sigffdeltahi_lim'), color='cyan')
+    # ax.axhline(y=cvars.get('overunder_buy'), color='magenta')
+    # ax.axhline(y=0.0, color='black')
+
+    return [sigffdelta_plot]
+
+
 def get_pnl(ohlc, **kwargs):
     ax = kwargs['ax']
 
@@ -1844,7 +1889,7 @@ def get_sigff(df, **kwargs):
 
     df['sigff'] = df.apply(lambda x: tfunc(x, df=df), axis=1)
     # + df['sigff'].ewm(span=6).mean()
-    df['sigff'] = normalize_col(df['sigff'], -0.5, 0.5)
+    df['sigff'] = normalize_col(df['sigff'], df['Close'].min(), df['Close'].max())
 
     plots_sigff_list = mpf.make_addplot(  # + * flatter
         df["sigff"],
@@ -2086,6 +2131,18 @@ def plots_overunder(ohlc, **kwargs):
     patches.append(mpatches.Patch(color=cvars.get('overunderstyle')['color'], label="O/U"))
     return plots_overunder_list
 
+def plots_sigffdelta(ohlc, **kwargs):
+    plots = kwargs['plots']
+    ax = kwargs['ax']
+    patches = kwargs['patches']
+
+    plots_sigffdelta_list = add_plots(plots, get_sigffdelta(ohlc, ax=ax))
+
+    patches.append(mpatches.Patch(color=cvars.get('overunderstyle')['color'], label="O/U"))
+    return plots_sigffdelta_list
+
+
+
 def plots_pt1(ohlc, **kwargs):
     plots = kwargs['plots']
     ax = kwargs['ax']
@@ -2311,6 +2368,57 @@ def plots_lookback(ohlc, **kwargs):
     plots = add_plots(plots, plots_lookback_list)
     return plots
 
+def plots_upperclose(ohlc, **kwargs):
+    plots = kwargs['plots']
+    ax = kwargs['ax']
+    patches = kwargs['patches']
+
+    plots_upperclose_list = [
+                        mpf.make_addplot(ohlc["upperClose"],
+                        ax=ax,
+                        color=cvars.get('upperclosestyle')['color'],
+                        width=cvars.get('upperclosestyle')['width'],
+                        alpha=cvars.get('upperclosestyle')['alpha'])
+    ]
+    patches.append(mpatches.Patch(color=cvars.get('upperclosestyle')['color'], label="Upper"))
+    plots = add_plots(plots, plots_upperclose_list)
+    return plots
+
+def plots_lowerclose(ohlc, **kwargs):
+    plots = kwargs['plots']
+    ax = kwargs['ax']
+    patches = kwargs['patches']
+
+    plots_lowerclose_list = [
+                        mpf.make_addplot(ohlc["lowerClose"],
+                        ax=ax,
+                        color=cvars.get('lowerclosestyle')['color'],
+                        width=cvars.get('lowerclosestyle')['width'],
+                        alpha=cvars.get('lowerclosestyle')['alpha'])
+    ]
+    patches.append(mpatches.Patch(color=cvars.get('lowerclosestyle')['color'], label="Upper"))
+    plots = add_plots(plots, plots_lowerclose_list)
+    return plots
+
+def plots_amp(ohlc, **kwargs):
+    plots = kwargs['plots']
+    ax = kwargs['ax']
+    patches = kwargs['patches']
+
+    plots_amp_list = [
+                        mpf.make_addplot(ohlc["amp"],
+                        ax=ax,
+                        color=cvars.get('lowerclosestyle')['color'],
+                        width=cvars.get('lowerclosestyle')['width'],
+                        alpha=cvars.get('lowerclosestyle')['alpha'])
+    ]
+    patches.append(mpatches.Patch(color=cvars.get('lowerclosestyle')['color'], label="AMP"))
+    plots = add_plots(plots, plots_amp_list)
+    g.amp_lim = g.CLOSE * cvars.get('amp_lim')
+    ax.axhline(y=g.amp_lim, color="black")
+
+    return plots
+
 def plots_rohlc(ohlc, **kwargs):
     plots = kwargs['plots']
     ax = kwargs['ax']
@@ -2357,8 +2465,10 @@ def plots_ffmaps(ohlc, **kwargs):
     patches = kwargs['patches']
 
     ohlc['ffmaps'] = ohlc['ffmap2'] - ohlc['ffmap']
-    # ohlc['ffmaps'] = ohlc['ffmaps'].ewm(span=2).mean()
+    ohlc['ffmaps'] = ohlc['ffmaps'].ewm(span=3).mean()
     # ohlc['ffmaps'] = ohlc['ffmaps'].ewm(span=4).mean()
+    # ohlc['ffmaps'] = ohlc['ffmaps'].ewm(span=8).mean()
+    # ohlc['ffmaps'] = ohlc['ffmaps'].ewm(span=8).mean()
     # ohlc['ffmaps'] = ohlc['ffmaps'].ewm(span=8).mean()
     # ohlc['ffmaps'] = ohlc['ffmaps'].ewm(span=16).mean()
 
@@ -2367,8 +2477,8 @@ def plots_ffmaps(ohlc, **kwargs):
     patches.append(mpatches.Patch(color=cvars.get('ffmapsstyle')['color'], label="FFMAPs"))
     plots = add_plots(plots, plots_ffmaps_list)
     ax.axhline(0,0,color="black")
-    ax.axhline(cvars.get('ffmaps_hithresh'),cvars.get('ffmaps_hithresh'),color="cyan")
-    ax.axhline(cvars.get('ffmaps_lothresh'),cvars.get('ffmaps_lothresh'),color="magenta")
+    ax.axhline(g.ffmaps_hithresh,color="cyan")
+    ax.axhline(g.ffmaps_lothresh,color="magenta")
 
     return plots
 
@@ -2475,7 +2585,7 @@ def plots_bbDelta(ohlc, **kwargs):
     ax = kwargs['ax']
     patches = kwargs['patches']
     plots = add_plots(plots, get_bbDelta(ohlc, ax=ax))
-    patches.append(mpatches.Patch(color=cvars.get('opcldeltastyle')['color'], label="Open/Close Delta"))
+    patches.append(mpatches.Patch(color=cvars.get('opcldeltastyle')['color'], label="BB3 Delta"))
     return plots
 
 
@@ -2563,6 +2673,8 @@ def process_buy(is_a_buy, **kwargs):
         rs = m * dfline['qty']
         return (rs)
 
+
+
     g.stoplimit_price  = BUY_PRICE * (1-cvars.get('sell_fee')) #/0.99
     # print(f"stoplimit_price set to {g.stoplimit_price}  ({BUY_PRICE} * {1-cvars.get('sell_fee')})")
 
@@ -2578,7 +2690,7 @@ def process_buy(is_a_buy, **kwargs):
     # !g.cooldown holds the number of buys
 
 
-    g.cooldown = g.gcounter + (g.current_run_count*3) #cvars.get("cooldown")
+    g.cooldown = g.gcounter + (g.current_run_count*3) #cvars.get("cooldown") # ! JWFIX '3' in config file
     # print(f"cooldown: {g.cooldown} / {g.current_run_count*3} / {g.gcounter}")
     # * we are in, so reset the buy signal for next run
     g.external_buy_signal = False
@@ -2590,8 +2702,13 @@ def process_buy(is_a_buy, **kwargs):
     state_ap('open_buys', BUY_PRICE)  # * adds to list of purchase prices since last sell
     state_ap('qty_holding', g.purch_qty)  # * adds to list of purchased quantities since last sell, respectfully
     # * calc avg price using weighted averaging, price and cost are [list] sums
-    g.subtot_cost, g.subtot_qty, g.avg_price = wavg(state_r('qty_holding'), state_r('open_buys'))
+
+
+    g.subtot_cost, g.subtot_qty, g.avg_price, g.adj_subtot_cost, g.adj_avg_price = wavg(state_r('qty_holding'), state_r('open_buys'))
+
+
     state_wr("last_avg_price",g.avg_price)
+    state_wr("last_adj_avg_price",g.avg_price)
 
     # * update the buysell records
     g.df_buysell['subtot'] = g.df_buysell.apply(lambda x: tots(x), axis=1)  # * calc which col we are looking at and apply accordingly
@@ -2628,8 +2745,6 @@ def process_buy(is_a_buy, **kwargs):
         g.is_first_buy = False
     state_wr("last_buy_price", BUY_PRICE)
 
-    g.est_buy_fee = (g.purch_qty * BUY_PRICE) * cvars.get('buy_fee')
-
     # * create a new order
     order = {}
     order["pair"] = cvars.get("pair")
@@ -2660,35 +2775,50 @@ def process_buy(is_a_buy, **kwargs):
         sess_cost = sess_cost + (open_buys_list[i] * qty_holding_list[i])
 
     # * make pretty strings
-    s_size = f"{order['size']:6.2f}"
+    s_size = f"{order['size']:6.3f}"
     s_price = f"{BUY_PRICE:6.2f}"
     s_cost = f"{order['size'] * BUY_PRICE:6.2f}"
     # d = f"{sess_cost:6.4f}"
     # e = f"{g.avg_price:06.4f}"
 
+    total_amt = g.purch_qty * BUY_PRICE
+    g.est_buy_fee = total_amt * cvars.get('buy_fee')
+    g.est_sell_fee = g.subtot_cost * cvars.get('sell_fee')
+    g.running_buy_fee = g.running_buy_fee +  g.est_buy_fee
+    g.covercost = g.running_buy_fee  + g.est_sell_fee
+    # print(f"NEW COVERCOST: {g.covercost}")
+    g.coverprice = g.avg_price + g.covercost
+    # print(f"{g.avg_price} + {g.covercost} = {g.coverprice}")
     # * print to console
     str=[]
     str.append(f"[{g.gcounter:05d}]")
     str.append(f"[{order['order_time']}]")
-    str.append(Fore.RED + f"Hold" + Fore.CYAN + f"{s_size} @ ${s_price} = ${s_cost}" + Fore.RESET)
+    str.append(Fore.RED + f"Hold [{g.buymode}] " + Fore.CYAN + f"{s_size} @ ${s_price} = ${s_cost}" + Fore.RESET)
     str.append(Fore.GREEN + f"AVG: " + Fore.CYAN +  Style.BRIGHT + f"${g.avg_price:6.2f}"+Style.RESET_ALL)
-    str.append(Fore.GREEN + f"COV: " + Fore.CYAN +  Style.BRIGHT + f"${g.avg_price+g.covercost:6.2f}"+Style.RESET_ALL)
+    str.append(Fore.GREEN + f"COV: " + Fore.CYAN +  Style.BRIGHT + f"${g.coverprice:6.2f}"+Style.RESET_ALL)
     str.append(Fore.RED + f"Fee: " + Fore.CYAN + f"${g.est_buy_fee:3.2f}" + Fore.RESET )
     iline=str[0]
     for s in str[1:]:
         iline = f"{iline} {s}"
     print(iline)
 
-    # * adjust purch_qty according to rules, and make number compatible with CB api
-    if g.needs_reload:
-        g.purch_qty = state_r("purch_qty")
-    else:
-        g.purch_qty = g.purch_qty * (1 + (g.purch_qty_adj_pct / 100))
-        g.purch_qty = int(g.purch_qty * 1000) / 1000  # ! Smallest unit allowed (on CB) is 0.00000001
+    if g.buymode != "D":
+        # * adjust purch_qty according to rules, and make number compatible with CB api
+        if g.needs_reload:
+            g.purch_qty = state_r("purch_qty")
+        else:
+            g.purch_qty = g.purch_qty * (1 + (g.purch_qty_adj_pct / 100))
+            g.purch_qty = int(g.purch_qty * 1000) / 1000  # ! Smallest unit allowed (on CB) is 0.00000001
+
+
 
     # * update state file
     state_wr("purch_qty", g.purch_qty)
     state_wr("open_buyscansell", True)
+
+    #* set new low threshholc
+    # g.ffmaps_lothresh = min(dfline['ffmaps'], g.ffmaps_lothresh)
+
 
     # * make a sound
     announce(what="buy")
@@ -2718,6 +2848,9 @@ def process_sell(is_a_sell, **kwargs):
     df = kwargs['df']
     dfline = kwargs['dfline']
 
+
+    # * all cover costs incl sell fee were calculated in buy
+
     ax.set_facecolor("#ffffff")  # * make background white when nothing to sell
 
     # * first get latest conversion price
@@ -2732,6 +2865,11 @@ def process_sell(is_a_sell, **kwargs):
     g.tot_buys = g.tot_buys + g.curr_buys
     g.curr_buys = 0
     state_wr("tot_buys", g.tot_buys)
+
+    # * reset ffmaps lo limit
+    #* set new low threshholc
+    g.ffmaps_lothresh = cvars.get('ffmaps_lothresh')
+
 
     # * calc new data.  g.subtot_qty is total holdings set in BUY routine
     g.subtot_value = g.subtot_qty * SELL_PRICE  
@@ -2778,6 +2916,7 @@ def process_sell(is_a_sell, **kwargs):
     # = order["funds"] = False
     order["side"] = "sell"
     order["size"] = truncate(g.subtot_qty, 5)
+
     order["price"] = SELL_PRICE
     # = order["stop_price"] = CLOSE * 1 / cvars.get('closeXn')
     # = order["upper_stop_price"] = CLOSE * 1
@@ -2848,17 +2987,37 @@ def process_sell(is_a_sell, **kwargs):
     sqlex(cmd)
 
     # * print to console
+    g.est_buy_fee =  g.subtot_cost * cvars.get('buy_fee')
+    g.est_sell_fee = g.subtot_cost * cvars.get('sell_fee')
+    sess_gross = (SELL_PRICE -g.avg_price) * g.subtot_qty
+    sess_net =  sess_gross - (g.running_buy_fee+g.est_sell_fee)
+    total_fee = g.running_buy_fee+g.est_sell_fee
+    g.covercost = total_fee * (1/g.subtot_qty)
+    g.coverprice = g.covercost + g.avg_price
 
-
+    # print("..........................................")
+    # print(f"running total buy fee: {g.running_buy_fee}")
+    # print(f"total sell fee: {g.est_sell_fee}")
+    # print(f"total fee: {total_fee}")
+    # print(f"purch qty: {g.subtot_qty}")
+    # print(f"current average: {g.avg_price}")
+    # print(f"virt covercost: {g.covercost}")
+    # print(f"coverprice: {g.coverprice}")
+    # print(f"close: {SELL_PRICE}")
+    # print(f"avg price: {g.avg_price}")
+    # print(f"gross profit: {sess_gross}")
+    # print(f"net profit: {sess_gross - total_fee}")
+    # print("------------------------------------------")
+    # waitfor()
     str=[]
     str.append(f"[{g.gcounter:05d}]")
     str.append(f"[{order['order_time']}]")
-    str.append(Fore.GREEN + f"Sold"  + f"{s_size} @ ${s_price} = ${s_tot}")
+    str.append(Fore.GREEN + f"Sold    "  + f"{s_size} @ ${s_price} = ${s_tot}")
     str.append(Fore.GREEN + f"AVG: " + Fore.CYAN +  Style.BRIGHT + f"${g.avg_price:6.2f}"+Style.RESET_ALL)
     str.append(Fore.GREEN + f"Fee: " + Fore.CYAN +  Style.BRIGHT + f"${g.est_sell_fee:3.2f}"+Style.RESET_ALL)
-    str.append(Fore.GREEN + f"SessGross: " + Fore.CYAN +  Style.BRIGHT + f"${(g.subtot_qty * SELL_PRICE) - g.subtot_cost:06.4f}"+Style.RESET_ALL)
+    str.append(Fore.GREEN + f"SessGross: " + Fore.CYAN +  Style.BRIGHT + f"${sess_gross:06.4f}"+Style.RESET_ALL)
     str.append(Fore.GREEN + f"SessFee: " + Fore.CYAN +  Style.BRIGHT + f"${g.covercost:3.2f}"+Style.RESET_ALL)
-    str.append(Fore.GREEN + f"SessNet: " + Fore.CYAN +  Style.BRIGHT + f"${s_rp2}"+Style.RESET_ALL)
+    str.append(Fore.GREEN + f"SessNet: " + Fore.CYAN +  Style.BRIGHT + f"${sess_net:6.2f}"+Style.RESET_ALL)
     str.append(Fore.RESET)
     iline=str[0]
     for s in str[1:]:
@@ -2895,7 +3054,6 @@ def process_sell(is_a_sell, **kwargs):
     g.purch_qty = g.capital * g.purch_pct
     # * reset average price
     g.avg_price = float("Nan")
-
 
     announce(what="sell") # * make a noise
 
@@ -2948,15 +3106,28 @@ def trigger_bb3avg(df, **kwargs):
                 g.uid = uuid.uuid4().hex
                 # if is_a_buy and (g.gcounter >= g.cooldown or CLOSE < dfline['lblow']):
                 # if is_a_buy and (g.gcounter >= g.cooldown):
-                if cvars.get('xflag01'):
-                    is_a_buy = is_a_buy and (g.gcounter >= g.cooldown or CLOSE < dfline['lblow'])
-                else:
-                    is_a_buy = is_a_buy and (g.gcounter >= g.cooldown)
 
+
+                # if cvars.get('xflag01'):
+                #     is_a_buy = is_a_buy and (g.gcounter >= g.cooldown or CLOSE < dfline['lblow'])
+                # else:
+                #     is_a_buy = is_a_buy and (g.gcounter >= g.cooldown)
+
+                if cvars.get('xflag01'):
+                    is_a_buy = is_a_buy and (CLOSE < dfline['lblow'])
+
+                # * make sure we have enough to cover
+                checksize = CLOSE * g.purch_qty
+                reserve = cvars.get('reserve_cap')
+                allocated = (reserve * CLOSE)
+                # allocated = (g.capital * CLOSE
+
+                is_a_buy = is_a_buy and checksize < allocated
                 if is_a_buy:
                     BUY_PRICE = process_buy(is_a_buy, ax=ax, CLOSE=CLOSE, df=df, dfline=dfline)
                 else:
                     BUY_PRICE = float("Nan")
+
             else:
                 BUY_PRICE = float("Nan")
             return BUY_PRICE
@@ -2966,10 +3137,6 @@ def trigger_bb3avg(df, **kwargs):
         # + -------------------------------------------------------------------
         if action == "sell":
             if g.idx == cols and state_r("open_buyscansell"):
-                # * dump if we are maxed-out of buys
-                # if g.curr_buys >= cvars.get("maxbuys"): #! do I need this?
-                # if (CLOSE > g.avg_price and cvars.get("bail_option_1") or (limitsell):  #! JWFIX no longer usegn bailoptipons? 
-
                 # * first we check is we need to apply stop-limit rules
                 limitsell = False
                 # print(f":: {CLOSE} - {g.stoplimit_price}")
@@ -2978,26 +3145,10 @@ def trigger_bb3avg(df, **kwargs):
                     limitsell = True
                     g.external_sell_signal = True
 
-                # * get total fees for sell-cycle BEFORE testing
-                g.covercost = sqlex(f"select sum(fees) from orders where bsuid = {g.bsuid} and session = '{g.session_name}'",ret="one")[0]
-                # * get SELL est_fee
-                g.est_sell_fee = (g.subtot_qty * CLOSE) * cvars.get('sell_fee')
-                g.covercost = g.covercost + g.est_sell_fee
-
-                # print("sell BEFORE TEST:", g.covercost)
-                # from lib_tests_class import Tests
-                # tc = Tests(cvars, dfline, df, idx=g.idx)
-
-                # importlib.reload(lib_tests_class)
-                # from lib_tests_class import Tests
-                # tc = Tests(cvars, dfline, df, idx=g.idx)
-
                 importlib.reload(lib_tests_class)
                 tc = lib_tests_class.Tests(cvars, dfline, df, idx=g.idx)
 
                 is_a_sell = is_a_sell and tc.selltest(cvars.get('testpair')[1]) or g.external_sell_signal
-                # is_a_sell = is_a_sell and STEPSUP >= 2              # * at least 3 previous downs
-
 
                 if is_a_sell:
                     g.uid = uuid.uuid4().hex
@@ -3007,6 +3158,10 @@ def trigger_bb3avg(df, **kwargs):
                     else:
                         SELL_PRICE = process_sell(is_a_sell, ax=ax, CLOSE=CLOSE, df=df, dfline=dfline)
                     os.system("touch /tmp/_sell")
+                    g.covercost = 0
+                    g.running_buy_fee = 0
+
+
                 else:
                     SELL_PRICE = float("Nan")
             else:
@@ -3034,9 +3189,11 @@ def trigger_bb3avg(df, **kwargs):
         ax.axhline(g.avg_price, color="indigo", linewidth=1, alpha=1)
         ax.axhline(g.avg_price+g.covercost, color="indigo", linewidth=1, alpha=0.5)
 
+
     tmp = g.df_buysell.iloc[::-1] # ! here we have to invert the array to get the correct order
-    p1 = mpf.make_addplot(tmp.buy, ax=ax, scatter=True, color="red", markersize=100, alpha=1, marker=6)  # + ^
-    p2 = mpf.make_addplot(tmp.sell, ax=ax, scatter=True, color="green", markersize=100, alpha=1, marker=7)  # + v
+    colors = ['blue' if v == 1 else 'red' for v in tmp["mclr"]]
+    p1 = mpf.make_addplot(tmp['buy'], ax=ax, scatter=True, color=colors, markersize=200, alpha=0.4,  marker=6)  # + ^
+    p2 = mpf.make_addplot(tmp['sell'], ax=ax, scatter=True, color="green", markersize=200, alpha=0.4, marker=7)  # + v
 
     #* add to MACD
 

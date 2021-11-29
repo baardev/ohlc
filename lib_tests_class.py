@@ -39,17 +39,17 @@ class Tests:
         self.BB_LOW_2 = dfl['bbl1']
         self.BB_LOW_3 = dfl['bbl2']
 
-        self.STEPSUP = dfl['stepsup']
-        self.STEPSDN = dfl['stepsdn']
+        self.STEPSUP = dfl['stepsup'] if "stepsup" in df else False
+        self.STEPSDN = dfl['stepsdn'] if "stepsdn" in df else False
 
-        self.FFMAPS = dfl['ffmaps']
-        self.BBDELTA = dfl['bbDelta']
+        self.FFMAPS = dfl['ffmaps'] if "ffmaps" in df else False
+        self.BBDELTA = dfl['bbDelta'] if "bbDelta" in df else False
 
-        self.MAVLONG = dfl['MAV20']
-        self.MAVLONGER = dfl['MAV40']
-        self.MAVLONGEST = dfl['MAV60']
+        self.MAVLONG = dfl['MAV20'] if "MAV20" in df else False
+        self.MAVLONGER = dfl['MAV40'] if "MAV40" in df else False
+        self.MAVLONGEST = dfl['MAV60'] if "MAV60" in df else False
 
-        self.LBLOW = dfl['lblow']
+        self.LBLOW = dfl['lblow'] if "lblow" in df else False
 
         current_ffmaps = df.iloc[len(df.index)-1]['ffmaps']
         ffcp = df.iloc[len(df.index)-2]['ffmaps']
@@ -84,6 +84,9 @@ class Tests:
         self.FFMAPULIM2 =  dfl['ffmapulim2'] if "ffmapulim2" in df else False
         self.FFMAPLLIM2 =  dfl['ffmapllim2'] if "ffmapllim2" in df else False
         self.FFMAP2 =  dfl['ffmap2'] if "ffmap2" in df else False
+
+        self.LOWERCLOSE =  dfl['lowerClose'] if "lowerClose" in df else False
+        self.AMP =  dfl['amp'] if "amp" in df else False
 
         self.SIGLF = dfl['siglf'] if "siglf" in df else False
         self.SIGFF = dfl['sigff'] if "sigff" in df else False
@@ -130,7 +133,7 @@ class Tests:
         current_varval = df[varval].iloc[len(df.index)-1]
         prev_varval =df[varval].iloc[len(df.index)-2]
 
-        if prev_varval > refval and current_varval <= refval:
+        if prev_varval > refval and current_varval < refval:
             rs = True
         return rs
 
@@ -217,40 +220,45 @@ class Tests:
     # ! ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
     def BUY_tvb(self):
         FLAG = True
+        # g.df_buysell['mclr'].iloc[0] = "red"
 
-        # * GENERALLY WORKED
-        # FLAG = FLAG and self.xover(trigger="bbl0", against=self.BB_LOW_2, dfl=self.dfl ,df=self.df)
-        # FLAG = FLAG or (
-        #     self.xover(trigger="bbl0", against=self.BB_LOW_2, dfl=self.dfl, df=self.df)
-        # )
+        # !FLAG = FLAG and self.FFMAPS_UPTURN and self.BBDELTA > o.cvars.get('bbDelta_lim') and self.CLOSE < self.MAVLONG and self.AMP > 6
+        # !FLAG = FLAG or self.xunder(trigger="Close", against=self.LOWERCLOSE, dfl=self.dfl, df=self.df)
 
+        FLAG = FLAG and self.FFMAPS < g.ffmaps_hithresh
         FLAG = FLAG and self.FFMAPS_UPTURN
-        FLAG = FLAG and self.FFMAPS < -5
+        # FLAG = FLAG and self.BBDELTA > o.cvars.get('bbDelta_lim')
         FLAG = FLAG and self.CLOSE < self.MAVLONG
+        FLAG = FLAG and self.AMP > g.amp_lim
+        # FLAG = FLAG and g.sigffdeltahi > g.sigffdeltahi_lim
+
+
+        # FLAG = FLAG and self.df['sigff'][-1] < self.df['sigff'][-2]
+
+
         # FLAG = FLAG and self.MAVLONG < self.MAVLONGER
         # FLAG = FLAG and self.MAVLONG < self.MAVLONGEST
         FLAG = FLAG and self.CLOSE < o.state_r('last_buy_price')
+        g.buymode = "L"
 
         if o.cvars.get('xflag01'):
-            FLAG = FLAG or self.xunder(trigger="Close", against=self.LBLOW, dfl=self.dfl, df=self.df)
+            COND2 = (
+                    self.xunder(trigger="Close", against=self.LBLOW, dfl=self.dfl, df=self.df)
+                    and self.CLOSE < o.state_r('last_buy_price')
+                    # and g.sigffdeltahi < g.sigffdeltahi_lim
+                    and self.AMP < g.amp_lim
+            )
+
+            if COND2:
+                g.buymode = "D"
+                g.df_buysell['mclr'].iloc[0] = 1
+
+            FLAG = FLAG or COND2
 
 
-
-
-
-        #and self.BBDELTA > 15
-                # self.xunder(trigger="Close", against=self.BB_LOW_1, dfl=self.dfl, df=self.df)
-                # self.CLOSE < self.BB_LOW_1    #!red
-                # self.CLOSE < self.BB_LOW_2  #* green
-                        # and self.CLOSE < self.BB_LOW_3
-        # )
-        # FLAG = FLAG or (
-        #     # self.BB_LOW_1 < self.BB_LOW_2
-
-
-        #     self.xover(trigger="bbl0", against=self.BB_LOW_2, dfl=self.dfl, df=self.df)
-        #     # or self.xover(trigger='ffmap', against=self.FFMAPLLIM, dfl=self.dfl, df=self.df)
-        # )
+        # FLAG = FLAG and self.xunder(trigger="Histogram", against=0, dfl=self.dfl, df=self.df)
+        # FLAG = FLAG and self.xover(trigger="MACD", against=self.SIGNAL, dfl=self.dfl, df=self.df)
+        # FLAG = FLAG and self.MACD< 0
 
         return FLAG
     # * ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
@@ -263,13 +271,23 @@ class Tests:
         # )
 
         thisClose = self.df['Close'].iloc[len(self.df.index)-1]
-        lastClose = self.df['Close'].iloc[len(self.df.index)-2]
 
-        fullcost = (g.avg_price + g.covercost)
-        if self.FFMAPS_DNTURN and self.FFMAPS > 0:
-            FLAG = FLAG and True
-        else:
-            FLAG = FLAG and thisClose > fullcost
+        total_fee = g.running_buy_fee + g.est_sell_fee
+        covercost = total_fee * (1 / g.subtot_qty)
+        coverprice = covercost + g.avg_price
+
+        # print(f"-----------------------------AVG:")
+        # print(f"  {g.avg_price} COVERCOST: {est_buy_fee+est_sell_fee} = {est_buy_fee} + {est_sell_fee} FILL: {fullcost}")
+
+        FLAG = FLAG and self.FFMAPS_DNTURN
+        FLAG = FLAG and self.FFMAPS > 0
+        # FLAG = FLAG and self.df['sigff'][-1] > self.df['sigff'][-2]
+        FLAG = FLAG or thisClose > coverprice
+
+        # if self.FFMAPS_DNTURN and self.FFMAPS > 0:
+        #     FLAG = FLAG and True
+        # else:
+        #     FLAG = FLAG and thisClose > fullcost
         # FLAG = FLAG or self.CLOSE > fullcost
 
 

@@ -28,11 +28,14 @@ subtot_sold = float("Nan")
 curr_qty = float("Nan")
 curr_cost = float("Nan")
 current_run_count = 0
+ffmaps_lothresh = -5
+ffmaps_hithresh = 0
+
 purch_qty = False  # ! loaded in main from cvars  (min amount for CB = 0.01)
 purch_qty_adj_pct = False  # ! loaded in main from cvars
 # purch_qty_adj_qty = False  # ! loaded in main from cvars
 capital = 1
-purch_pct = 0.1
+purch_pct = 0.01
 
 pct_gain_list = []
 pnl_record_list = []
@@ -42,9 +45,13 @@ last_pct_gain = float("Nan")
 last_pnl_record = float("Nan")
 last_pct_record = float("Nan")
 
+buy_marker_color = "red"
+sigffdeltahi = 0
 pct_return = 0
 pct_cap_return = 0
-
+buymode = False
+CLOSE = 0
+amp_lim = 6
 stepctu = 0
 stepctd = 0
 buy_fee = 0.000003
@@ -84,9 +91,16 @@ needs_reload = False
 startdate = "1970-01-01 00:00:00"
 current_close = 0
 lblow = None
-covercost = 0 #! JWFIX same?
+covercost = 0
+tmp_covercost = 0
+running_buy_fee = 0
+
+adj_subtot_cost = 0
+adj_avg_price = 0
+
 est_buy_fee=0
 est_sell_fee=0
+coverprice = False
 
 # ! these are the only fields allowed for the coinbase order(s), as determined by 'cb_order.py'
 cflds = {

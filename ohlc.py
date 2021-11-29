@@ -148,6 +148,9 @@ if interval_pause:
 g.buy_fee = o.cvars.get('buy_fee')
 g.sell_fee = o.cvars.get('sell_fee')
 
+g.ffmaps_lothresh = o.cvars.get('ffmaps_lothresh')
+g.ffmaps_hithresh = o.cvars.get('ffmaps_hithresh')
+g.sigffdeltahi_lim = o.cvars.get('sigffdeltahi_lim')
 
 g.capital =  o.cvars.get("capital")
 g.purch_pct =  o.cvars.get("purch_pct")/100  
@@ -161,7 +164,7 @@ g.purch_qty_adj_pct = o.cvars.get("purch_qty_adj_pct")
 
 datatype =o.cvars.get("datatype")
 
-print(f"---{datatype}")
+# print(f"---{datatype}")
 if datatype == "live":
     g.interval = 300000
 else:
@@ -178,7 +181,7 @@ if interval_pause:
 # * create the global buy/sell and all_records dataframes
 # g.df_allrecords = pd.DataFrame()
 g.df_buysell = pd.DataFrame(index=range(g.datawindow),
-                            columns=['Timestamp', 'buy', 'sell', 'qty', 'subtot', 'tot', 'pnl', 'pct'])
+                            columns=['Timestamp', 'buy', 'mclr', 'sell', 'qty', 'subtot', 'tot', 'pnl', 'pct'])
 g.cwd = os.getcwd().split("/")[-1:][0]
 
 # * ccxt doesn't yet support CB ohlcv data, so CB and binance charts will be a little off
@@ -362,7 +365,7 @@ def working(k):
             # continue
     ohlc = g.ohlc
 
-
+    g.CLOSE = ohlc['Close'][-1]
     # ! ───────────────────────────────────────────────────────────────────────────────────────
     # ! CHECK THE SIZE OF THE DATAFRAME and Gracefully exit on error or command
     # ! ───────────────────────────────────────────────────────────────────────────────────────
@@ -418,13 +421,17 @@ def working(k):
     o.make_steppers(ohlc)  # * fill the stepper data
 
     # * set trigger boundry for lookback
-    # ohlc['lblow'] = ohlc['Close'][-3] * 0.995
-    ohlc['lblow'] = ohlc['Close'].shift(3).ewm(span=12).mean() *.995
+    ohlc['lblow'] = ohlc['Close'].shift(3).ewm(span=12).mean() * (1-o.cvars.get('lblowpct')) #.995
+    ohlc['upperClose'] = ohlc['Close'].ewm(span=12).mean() * (1+o.cvars.get('lblowpct')) #.995
+    ohlc['lowerClose'] = ohlc['Close'].ewm(span=12).mean() * (1-o.cvars.get('lblowpct')) #.995
+    ohlc['amp'] = abs(ohlc['Close']-ohlc['Close'].shift(1)).ewm(span=12).mean()
 
-    # plots = o.plots_lookback(ohlc, plots=plots, ax=ax[0], patches=ax_patches[0])
-    # plots = o.plots_hilo(ohlc, plots=plots, ax=ax[adx], patches=ax_patches[adx])
-    # g.lblow = ohlc['Close'][-3]*0.995
-    # ax[0].axhline(y=lblow, color="red", linewidth=1, alpha=1)
+
+    plots = o.plots_lookback(ohlc, plots=plots, ax=ax[0], patches=ax_patches[0])
+    plots = o.plots_upperclose(ohlc, plots=plots, ax=ax[0], patches=ax_patches[0])
+    plots = o.plots_lowerclose(ohlc, plots=plots, ax=ax[0], patches=ax_patches[0])
+
+    plots = o.plots_amp(ohlc, plots=plots, ax=ax[5], patches=ax_patches[5])
 
     # + ───────────────────────────────────────────────────────────────────────────────────────
     # + "plots_mav" makes moving aveage lines
@@ -612,9 +619,9 @@ def working(k):
         if adx < g.num_axes:
             plots = o.plots_overunder(ohlc, plots=plots, ax=ax[adx], patches=ax_patches[adx])
 
-
-
-
+    ohlc['sigffdelta'] =  range(len(ohlc))
+    ohlc['sigffdeltahi'] =  range(len(ohlc))
+    plots = o.plots_sigffdelta(ohlc, plots=plots, ax=ax[3], patches=ax_patches[3])
     #
     # bbdelta = ohlc['bbDelta'][-1]
     # # print(bbdelta)
@@ -701,7 +708,7 @@ def working(k):
         fn = f"_allrecords_{g.instance_num}.json"
         g.logit.debug(f"Save {fn}")
         o.cvars.save(adf, fn)
-        del afn
+        del adf
     except:
         pass
 
@@ -718,5 +725,15 @@ def working(k):
     # summary.print_(diff)
 
 #   frames=<n>, n is completely arbitrary
+
+    # * embaressingly innefficient, but we have 5 minutes between updates.. so nuthin but time :/
+    cmd=f'''
+    SET @tots:= 0;
+    UPDATE orders SET fintot = null WHERE session = '{g.session_name}' ;
+    UPDATE orders SET runtotnet = credits - fees;
+    UPDATE orders SET fintot = (@tots := @tots + runtotnet) WHERE session = '{g.session_name}' ;
+    '''
+    o.sqlex(cmd)
+
 ani = animation.FuncAnimation(fig=fig, func=animate, frames=1086400, interval=g.interval, repeat=False)
 mpf.show()
