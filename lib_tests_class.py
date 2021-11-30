@@ -3,6 +3,7 @@ import lib_globals as g
 import lib_ohlc as o
 # + cvars = Cvars(g.cfgfile)
 
+
 class Tests:
     def __init__(self, cvars, dfl, df, **kwargs):
         # + self.cargs = cargs
@@ -50,6 +51,7 @@ class Tests:
         self.MAVLONGEST = dfl['MAV60'] if "MAV60" in df else False
 
         self.LBLOW = dfl['lblow'] if "lblow" in df else False
+        self.LOWERCLOSE = dfl['lowerClose'] if "lowerClose" in df else False
 
         current_ffmaps = df.iloc[len(df.index)-1]['ffmaps']
         ffcp = df.iloc[len(df.index)-2]['ffmaps']
@@ -219,97 +221,47 @@ class Tests:
 
     # ! ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
     def BUY_tvb(self):
-        FLAG = True
-        # g.df_buysell['mclr'].iloc[0] = "red"
+        COND1 = (
+                self.FFMAPS < g.ffmaps_midline #ffmaps_lothresh
+                and self.FFMAPS_UPTURN
+                and self.CLOSE < self.MAVLONG
+                and self.CLOSE < o.state_r('last_buy_price')
+        )
 
-        # !FLAG = FLAG and self.FFMAPS_UPTURN and self.BBDELTA > o.cvars.get('bbDelta_lim') and self.CLOSE < self.MAVLONG and self.AMP > 6
-        # !FLAG = FLAG or self.xunder(trigger="Close", against=self.LOWERCLOSE, dfl=self.dfl, df=self.df)
-
-        FLAG = FLAG and self.FFMAPS < g.ffmaps_hithresh
-        FLAG = FLAG and self.FFMAPS_UPTURN
-        # FLAG = FLAG and self.BBDELTA > o.cvars.get('bbDelta_lim')
-        FLAG = FLAG and self.CLOSE < self.MAVLONG
-        FLAG = FLAG and self.AMP > g.amp_lim
-        # FLAG = FLAG and g.sigffdeltahi > g.sigffdeltahi_lim
-
-
-        # FLAG = FLAG and self.df['sigff'][-1] < self.df['sigff'][-2]
-
-
-        # FLAG = FLAG and self.MAVLONG < self.MAVLONGER
-        # FLAG = FLAG and self.MAVLONG < self.MAVLONGEST
-        FLAG = FLAG and self.CLOSE < o.state_r('last_buy_price')
-        g.buymode = "L"
+        if COND1:
+            #* override counter
+            g.cooldown = g.gcounter
+            g.buymode = "L"
+            return True
 
         if o.cvars.get('xflag01'):
             COND2 = (
-                    self.xunder(trigger="Close", against=self.LBLOW, dfl=self.dfl, df=self.df)
+                    self.xunder(trigger="Close", against=self.LOWERCLOSE, dfl=self.dfl, df=self.df)
                     and self.CLOSE < o.state_r('last_buy_price')
-                    # and g.sigffdeltahi < g.sigffdeltahi_lim
-                    and self.AMP < g.amp_lim
+                    # and self.AMP < g.amp_lim
             )
 
             if COND2:
                 g.buymode = "D"
                 g.df_buysell['mclr'].iloc[0] = 1
+                # * reset purch_qty
+                # g.purch_pct = o.cvars.get("purch_pct") / 100
+                # g.purch_qty = g.capital * g.purch_pct
+                return True
 
-            FLAG = FLAG or COND2
-
-
-        # FLAG = FLAG and self.xunder(trigger="Histogram", against=0, dfl=self.dfl, df=self.df)
-        # FLAG = FLAG and self.xover(trigger="MACD", against=self.SIGNAL, dfl=self.dfl, df=self.df)
-        # FLAG = FLAG and self.MACD< 0
-
-        return FLAG
+        return False
     # * ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
     def SELL_tvb(self):
         FLAG = True
-        # FLAG = FLAG and self.Cover3BBhigh
-        # FLAG = FLAG or (
-        #         self.xover(trigger="bbl0", against=self.BB_LOW_2, dfl=self.dfl, df=self.df)
-        #         and self.CLOSE > self.AVG_PRICE
-        # )
-
-        thisClose = self.df['Close'].iloc[len(self.df.index)-1]
 
         total_fee = g.running_buy_fee + g.est_sell_fee
         covercost = total_fee * (1 / g.subtot_qty)
         coverprice = covercost + g.avg_price
 
-        # print(f"-----------------------------AVG:")
-        # print(f"  {g.avg_price} COVERCOST: {est_buy_fee+est_sell_fee} = {est_buy_fee} + {est_sell_fee} FILL: {fullcost}")
-
-        FLAG = FLAG and self.FFMAPS_DNTURN
-        FLAG = FLAG and self.FFMAPS > 0
-        # FLAG = FLAG and self.df['sigff'][-1] > self.df['sigff'][-2]
-        FLAG = FLAG or thisClose > coverprice
-
-        # if self.FFMAPS_DNTURN and self.FFMAPS > 0:
-        #     FLAG = FLAG and True
-        # else:
-        #     FLAG = FLAG and thisClose > fullcost
-        # FLAG = FLAG or self.CLOSE > fullcost
-
-
-        #and self.CLOSE > (self.AVG_PRICE + g.covercost)
-        # print(f"tesfor for voer: {g.covercost}")
-        # FLAG = FLAG and self.CLOSE > (g.avg_price + (g.covercost*2))
-        # FLAG = FLAG and (
-        #
-        #         self.CLOSE > self.BB_HIGH_1   #!red
-        #         # self.CLOSE > self.BB_HIGH_2  #*green
-        #         # and self.CLOSE < self.BB_LOW_3
-        # )
-
-        #
-        # FLAG = FLAG and self.Cover3BBhigh
-        # FLAG = FLAG or (
-        #         # self.xover(trigger="bbl0", against=self.BB_LOW_2, dfl=self.dfl, df=self.df)
-        #         # and self.xover(trigger='ffmap2', against=self.FFMAPLLIM2, dfl=self.dfl, df=self.df)
-        #         self.CLOSE > self.AVG_PRICE * 1.002
-        # )
-        #
-
+        # print(f"close: {self.CLOSE}  coverprice: {coverprice}")
+        coverprice = covercost + g.avg_price
+        # FLAG = FLAG and (self.FFMAPS_DNTURN and self.FFMAPS > g.ffmaps_midline) #or self.CLOSE > g.coverprice
+        FLAG = FLAG and self.CLOSE > g.coverprice
         return FLAG
 
 

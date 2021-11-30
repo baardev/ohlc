@@ -144,7 +144,7 @@ g.interval = o.cvars.get("interval")
 if interval_pause:
     g.interval = interval_pause
 
-# g.purch_qty = o.cvars.get("purch_qty")
+# g.purch_qty = o.cvars.get("purch_qty") #use
 g.buy_fee = o.cvars.get('buy_fee')
 g.sell_fee = o.cvars.get('sell_fee')
 
@@ -191,6 +191,9 @@ g.conversion = o.get_last_price(g.spot_src)
 
 # * set up the canvas and windows
 fig = c.figure_pz(figsize=(o.cvars.get("figsize")[0], o.cvars.get("figsize")[1]), dpi=96)
+fig2 = c.figure_pz(figsize=(o.cvars.get("figsize2")[0], o.cvars.get("figsize")[1]), dpi=96)
+
+fig2.add_subplot(111)  # OHLC - top left
 
 if o.cvars.get("columns") == 1:
     fig.add_subplot(311)  # OHLC - top left
@@ -206,6 +209,9 @@ if o.cvars.get("columns") == 2:
     fig.add_subplot(326)  # bottom right
 
 ax = fig.get_axes()
+ax2 = fig2.get_axes()
+ax[0] = ax2[0]
+
 g.num_axes = len(ax)
 multi = MultiCursor(fig.canvas, ax, color='r', lw=1, horizOn=True, vertOn=True)
 
@@ -421,9 +427,9 @@ def working(k):
     o.make_steppers(ohlc)  # * fill the stepper data
 
     # * set trigger boundry for lookback
-    ohlc['lblow'] = ohlc['Close'].shift(3).ewm(span=12).mean() * (1-o.cvars.get('lblowpct')) #.995
-    ohlc['upperClose'] = ohlc['Close'].ewm(span=12).mean() * (1+o.cvars.get('lblowpct')) #.995
-    ohlc['lowerClose'] = ohlc['Close'].ewm(span=12).mean() * (1-o.cvars.get('lblowpct')) #.995
+    ohlc['lblow'] = ohlc['Close'].shift(3).ewm(span=12).mean() * (1-o.cvars.get('lblowpct'))
+    ohlc['upperClose'] = ohlc['Close'].ewm(span=12).mean() * (1+o.cvars.get('lblowpct'))
+    ohlc['lowerClose'] = ohlc['Close'].ewm(span=12).mean() * (1-o.cvars.get('lblowpct'))
     ohlc['amp'] = abs(ohlc['Close']-ohlc['Close'].shift(1)).ewm(span=12).mean()
 
 
@@ -440,8 +446,15 @@ def working(k):
         adx = o.cvars.get('loc_plots_mav')
         if adx < g.num_axes:
             for m in o.cvars.get("mavs"):
-                plots = o.plots_mav(ohlc, mav=m['length'], color=m['color'], width=m['width'], plots=plots,
-                                    ax=ax[adx], patches=ax_patches[adx])
+                plots = o.plots_mav(ohlc,
+                                    mav     = m['length'],
+                                    color   = m['color'],
+                                    width   = m['width'],
+                                    alpha   = m['alpha'],
+                                    plots   = plots,
+                                    ax      = ax[adx],
+                                    patches = ax_patches[adx]
+                                    )
     # + ───────────────────────────────────────────────────────────────────────────────────────
     # + "rohlc" invert the ohlc
     # + ───────────────────────────────────────────────────────────────────────────────────────
@@ -585,7 +598,9 @@ def working(k):
     if o.cvars.get("plots_macd"):
         # * the EMAs unsed in the MACD has a separate Y-scale so they can't be shown in teh same windows as the MACD
         # * so they are calulated and plotted in a seperatre window, but are not optional for tha MACD
+
         adx_ema = o.cvars.get("loc_plots_ema")
+
         if adx_ema < g.num_axes:
             plots = o.plots_macdema(ohlc, plots=plots, ax=ax[adx_ema], patches=ax_patches[adx_ema])
 
@@ -593,19 +608,6 @@ def working(k):
         if adx_macd < g.num_axes:
             plots = o.plots_macd(ohlc, plots=plots, ax=ax[adx_macd], patches=ax_patches[adx_macd])
 
-            # tmp = g.df_buysell.iloc[::-1]
-            # tmp = tmp.head(len(ohlc.index))
-            #
-            # # print(len(ohlc.index), len(tmp.index))
-            #
-            # buylines = tmp[["Timestamp","buy"]]
-            # buylines['marker'].fillna(None)
-            # # print(buylines.info())
-            #
-            #
-            # p1 = mpf.make_addplot(buylines['buy'], ax=ax[adx_ema],scatter=True, color="red", markersize=100, alpha=1, marker=6)  # + ^
-            # # p2 = mpf.make_addplot(selllines['sell'], ax=ax[adx_ema], scatter=True, color="green", markersize=100, alpha=1, marker=7)  # + v
-            # plots = o.add_plots(plots,[p1])
     # + ───────────────────────────────────────────────────────────────────────────────────────
     # + The following plots are experimental, useless, or broken
     # + ───────────────────────────────────────────────────────────────────────────────────────
@@ -649,6 +651,7 @@ def working(k):
                           fromdate="N/A", todate="N/A")
         fig.suptitle(ft, color='white')
         fig.patch.set_facecolor('black')
+        fig2.patch.set_facecolor('black')
 
         ax[0].set_title(f"OHCL {add_title} - ({o.get_latest_time(ohlc)}-{t.current.second})", color='white')
         ax[0].set_ylabel("Asset Value (in $USD)", color='white')
@@ -727,12 +730,13 @@ def working(k):
 #   frames=<n>, n is completely arbitrary
 
     # * embaressingly innefficient, but we have 5 minutes between updates.. so nuthin but time :/
-    cmd=f'''
-    SET @tots:= 0;
-    UPDATE orders SET fintot = null WHERE session = '{g.session_name}' ;
-    UPDATE orders SET runtotnet = credits - fees;
-    UPDATE orders SET fintot = (@tots := @tots + runtotnet) WHERE session = '{g.session_name}' ;
-    '''
+    cmd="SET @tots:= 0"
+    o.sqlex(cmd)
+    cmd=f"UPDATE orders SET fintot = null WHERE session = '{g.session_name}'"
+    o.sqlex(cmd)
+    cmd=f"UPDATE orders SET runtotnet = credits - fees"
+    o.sqlex(cmd)
+    cmd=f"UPDATE orders SET fintot = (@tots := @tots + runtotnet) WHERE session = '{g.session_name}'"
     o.sqlex(cmd)
 
 ani = animation.FuncAnimation(fig=fig, func=animate, frames=1086400, interval=g.interval, repeat=False)

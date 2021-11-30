@@ -22,11 +22,11 @@ spot_src = False
 ticker_src = False
 last_conversion = conversion
 subtot_value = float("Nan")
-subtot_qty = float("Nan")
-subtot_cost = float("Nan")
-subtot_sold = float("Nan")
-curr_qty = float("Nan")
-curr_cost = float("Nan")
+subtot_qty = 0
+subtot_cost = 0
+subtot_sold = 0
+curr_qty = 0
+curr_cost = 0
 current_run_count = 0
 ffmaps_lothresh = -5
 ffmaps_hithresh = 0
@@ -94,7 +94,7 @@ lblow = None
 covercost = 0
 tmp_covercost = 0
 running_buy_fee = 0
-
+ffmaps_midline = 0
 adj_subtot_cost = 0
 adj_avg_price = 0
 
